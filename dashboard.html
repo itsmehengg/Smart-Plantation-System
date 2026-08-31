@@ -103,6 +103,56 @@
             </div>
           </article>
 
+
+
+          <article class="card leaf-webcam-card">
+            <div class="card-title">
+              <div>
+                <h2>Leaf Webcam</h2>
+                <p id="webcam-status">Camera not started</p>
+              </div>
+              <div class="webcam-actions">
+                <button class="outline-btn" type="button" id="start-webcam"><i data-lucide="video"></i>Start Camera</button>
+                <button class="primary-btn" type="button" id="capture-leaf-photo"><i data-lucide="camera"></i>Capture</button>
+                <button class="outline-btn" type="button" id="clear-leaf-photo"><i data-lucide="x"></i>Clear</button>
+              </div>
+            </div>
+            <div class="webcam-grid">
+              <div class="webcam-panel">
+                <video id="leaf-webcam-video" autoplay playsinline muted></video>
+              </div>
+              <div class="webcam-panel captured">
+                <canvas id="leaf-webcam-canvas" hidden></canvas>
+                <img id="leaf-captured-image" alt="Captured plant leaf" />
+                <span id="leaf-captured-placeholder">No captured image yet</span>
+              </div>
+            </div>
+            <div class="roboflow-config">
+              <label>Model ID<input id="roboflow-model-id" type="text" placeholder="leaf-detection-xdr6h/1" /></label>
+              <label>Version<input id="roboflow-version" type="number" min="1" placeholder="1" /></label>
+              <label>API Key<input id="roboflow-api-key" type="password" placeholder="Paste Roboflow API key" autocomplete="off" /></label>
+              <button class="outline-btn" type="button" id="save-roboflow-config"><i data-lucide="save"></i>Save Model</button>
+            </div>
+            <div class="leaf-analysis-grid">
+              <div class="leaf-analysis-item">
+                <span>Detection</span>
+                <strong id="leaf-detection-label">Waiting</strong>
+              </div>
+              <div class="leaf-analysis-item">
+                <span>Leaf Situation</span>
+                <strong id="leaf-health-status">Capture leaf first</strong>
+              </div>
+              <div class="leaf-analysis-item">
+                <span>Confidence</span>
+                <strong id="leaf-confidence">--%</strong>
+              </div>
+              <div class="leaf-analysis-item">
+                <span>YOLO Objects</span>
+                <strong id="leaf-object-count">--</strong>
+              </div>
+            </div>
+          </article>
+
           <article class="card chart-card">
             <div class="card-title">
               <div>

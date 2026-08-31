@@ -159,6 +159,199 @@ document.querySelectorAll(".days button").forEach((day) => {
   });
 });
 
+
+let leafWebcamStream = null;
+
+function setWebcamStatus(message) {
+  setText("webcam-status", message);
+}
+
+async function startLeafWebcam() {
+  const video = document.getElementById("leaf-webcam-video");
+  if (!video || !navigator.mediaDevices?.getUserMedia) {
+    setWebcamStatus("Camera is not available in this browser");
+    return;
+  }
+
+  try {
+    leafWebcamStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
+    });
+    video.srcObject = leafWebcamStream;
+    setWebcamStatus("Camera live. Aim at the plant leaf and capture.");
+  } catch (error) {
+    console.error(error);
+    setWebcamStatus("Camera blocked. Allow camera permission or use HTTPS/localhost.");
+  }
+}
+
+function getRoboflowConfig() {
+  const savedModel = localStorage.getItem("roboflowModelId") || "leaf-detection-xdr6h/1";
+  const savedVersion = localStorage.getItem("roboflowVersion") || "1";
+
+  return {
+    modelId: savedModel.includes("/") ? savedModel : `${savedModel}/${savedVersion}`,
+    version: savedVersion,
+    apiKey: localStorage.getItem("roboflowApiKey") || "",
+  };
+}
+
+function setRoboflowResult(label, situation, confidence, count) {
+  setText("leaf-detection-label", label);
+  setText("leaf-health-status", situation);
+  setText("leaf-confidence", confidence);
+  setText("leaf-object-count", count);
+}
+
+function canvasToJpegBlob(canvas) {
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.92);
+  });
+}
+
+async function runRoboflowDetection(blob) {
+  const config = getRoboflowConfig();
+  if (!config.modelId || !config.apiKey) {
+    throw new Error("Missing Roboflow model ID or API key.");
+  }
+
+  const endpoint = `https://serverless.roboflow.com/${config.modelId}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${config.apiKey}`,
+      "Content-Type": "image/jpeg",
+    },
+    body: blob,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Roboflow detection failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function interpretLeafDetection(result) {
+  const predictions = Array.isArray(result?.predictions) ? result.predictions : [];
+  const best = predictions
+    .slice()
+    .sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0))[0];
+
+  if (!best) {
+    return {
+      label: "No leaf detected",
+      situation: "Move the camera closer to the leaf and capture again.",
+      confidence: "--%",
+      count: "0",
+    };
+  }
+
+  const label = String(best.class || best.class_name || "unknown");
+  const normalized = label.toLowerCase();
+  const confidence = Math.round(Number(best.confidence || 0) * 100);
+
+  let situation = "Leaf detected. Check model label.";
+  if (normalized.includes("green") || normalized.includes("healthy")) {
+    situation = "Healthy leaf";
+  } else if (normalized.includes("brown") || normalized.includes("potassium") || normalized.includes("yellow") || normalized.includes("dry")) {
+    situation = "Brown leaf detected: possible potassium loss";
+  }
+
+  return {
+    label,
+    situation,
+    confidence: `${confidence}%`,
+    count: String(predictions.length),
+  };
+}
+
+async function captureLeafPhoto() {
+  const video = document.getElementById("leaf-webcam-video");
+  const canvas = document.getElementById("leaf-webcam-canvas");
+  const image = document.getElementById("leaf-captured-image");
+  const placeholder = document.getElementById("leaf-captured-placeholder");
+
+  if (!video || !canvas || !image || !video.videoWidth) {
+    setWebcamStatus("Start the camera before capturing.");
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext("2d");
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  image.src = canvas.toDataURL("image/jpeg", 0.92);
+  image.classList.add("has-image");
+  if (placeholder) placeholder.hidden = true;
+
+  setWebcamStatus("Captured image. Sending to Roboflow YOLO...");
+  setRoboflowResult("Detecting", "Waiting for YOLO result", "--%", "--");
+
+  try {
+    const blob = await canvasToJpegBlob(canvas);
+    const result = await runRoboflowDetection(blob);
+    const analysis = interpretLeafDetection(result);
+    setRoboflowResult(analysis.label, analysis.situation, analysis.confidence, analysis.count);
+    setWebcamStatus(`Roboflow detection complete at ${new Date().toLocaleTimeString()}`);
+  } catch (error) {
+    console.error(error);
+    setRoboflowResult("Detection failed", "Check Roboflow model settings and API key", "--%", "--");
+    setWebcamStatus(error.message);
+  }
+}
+
+function clearLeafPhoto() {
+  const image = document.getElementById("leaf-captured-image");
+  const placeholder = document.getElementById("leaf-captured-placeholder");
+  if (image) {
+    image.removeAttribute("src");
+    image.classList.remove("has-image");
+  }
+  if (placeholder) placeholder.hidden = false;
+  setWebcamStatus("Captured image cleared");
+}
+
+function initLeafWebcam() {
+  const startButton = document.getElementById("start-webcam");
+  const captureButton = document.getElementById("capture-leaf-photo");
+  const clearButton = document.getElementById("clear-leaf-photo");
+  const saveModelButton = document.getElementById("save-roboflow-config");
+
+  if (!startButton || !captureButton || !clearButton) return;
+
+  const config = getRoboflowConfig();
+  const modelInput = document.getElementById("roboflow-model-id");
+  const versionInput = document.getElementById("roboflow-version");
+  const keyInput = document.getElementById("roboflow-api-key");
+  if (modelInput) modelInput.value = config.modelId;
+  if (versionInput) versionInput.value = config.version;
+  if (keyInput) keyInput.value = config.apiKey;
+
+  startButton.addEventListener("click", startLeafWebcam);
+  captureButton.addEventListener("click", captureLeafPhoto);
+  clearButton.addEventListener("click", clearLeafPhoto);
+  if (saveModelButton) {
+    saveModelButton.addEventListener("click", () => {
+      const modelValue = modelInput?.value.trim() || "leaf-detection-xdr6h/1";
+      localStorage.setItem("roboflowModelId", modelValue);
+      localStorage.setItem("roboflowVersion", versionInput?.value.trim() || "1");
+      localStorage.setItem("roboflowApiKey", keyInput?.value.trim() || "");
+      setWebcamStatus("Roboflow model settings saved in this browser.");
+    });
+  }
+
+  if (!window.isSecureContext) {
+    setWebcamStatus("Use HTTPS or localhost to enable camera access.");
+  }
+}
+
 const WEATHER_CONFIG = {
   location: "Kuala Lumpur",
   forecastUrl: "https://api.data.gov.my/weather/forecast",
@@ -683,6 +876,7 @@ async function loadWeatherData() {
 }
 
 initRelayMqttControls();
+initLeafWebcam();
 initAnalyticsControls();
 loadWeatherData();
 loadSupabaseSensorData();
