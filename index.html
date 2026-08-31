@@ -125,17 +125,17 @@
           <article class="card actuator-card">
             <div class="card-title">
               <h2>Actuators</h2>
-              <span class="live-dot">Live</span>
+              <span class="live-dot" id="relay-mqtt-status">MQTT connecting</span>
             </div>
             <div class="device-list">
-              <button class="device-row" type="button" data-toggle>
-                <span class="device-icon"><i data-lucide="droplets"></i></span>
-                <span><strong>Water Pump</strong><small>Zone A Reservoir</small></span>
+              <button class="device-row" type="button" data-actuator-toggle data-actuator="fan" aria-pressed="false">
+                <span class="device-icon"><i data-lucide="fan"></i></span>
+                <span><strong>Circulation Fan</strong><small id="fan-relay-status">OFF</small></span>
                 <span class="switch"></span>
               </button>
-              <button class="device-row active" type="button" data-toggle>
-                <span class="device-icon"><i data-lucide="fan"></i></span>
-                <span><strong>Circulation Fan</strong><small>Main Canopy</small></span>
+              <button class="device-row" type="button" data-actuator-toggle data-actuator="pump" aria-pressed="false">
+                <span class="device-icon"><i data-lucide="droplets"></i></span>
+                <span><strong>Water Pump</strong><small id="pump-relay-status">OFF</small></span>
                 <span class="switch"></span>
               </button>
             </div>
@@ -147,6 +147,7 @@
   </div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

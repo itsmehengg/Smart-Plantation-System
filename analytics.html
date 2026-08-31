@@ -65,11 +65,11 @@
             <p><i data-lucide="database"></i><span id="analytics-sync-status">Loading Supabase readings</span></p>
           </div>
           <div class="heading-actions">
-            <button class="outline-btn" type="button"><i data-lucide="download"></i>Export CSV</button>
+            <button class="outline-btn" type="button" id="export-sensor-csv"><i data-lucide="download"></i>Export CSV</button>
             <div class="segmented">
-              <button class="active" type="button">7D</button>
-              <button type="button">30D</button>
-              <button type="button">YTD</button>
+              <button class="active" type="button" data-analytics-range="7">7D</button>
+              <button type="button" data-analytics-range="30">30D</button>
+              <button type="button" data-analytics-range="ytd">YTD</button>
             </div>
           </div>
         </div>
@@ -79,50 +79,31 @@
             <div class="chart-top-line"></div>
             <div class="card-title">
               <div>
-                <h2>Biomass Yield vs. Target</h2>
-                <p>Zone Alpha • Strain: Indica Hybrid</p>
+                <h2>Sensor Trends</h2>
+                <p><span id="analytics-chart-subtitle">Supabase readings from ESP32</span></p>
               </div>
-              <span class="gain">↗ +14.2%</span>
+              <span class="gain" id="analytics-trend-badge">--</span>
             </div>
             <div class="yield-chart">
-              <svg viewBox="0 0 760 360" role="img" aria-label="Biomass yield chart">
-                <path class="grid-line" d="M60 58H730M60 145H730M60 235H730M60 318H730" />
-                <text x="0" y="62">100kg</text>
-                <text x="0" y="149">75kg</text>
-                <text x="0" y="239">25kg</text>
-                <text x="0" y="322">0</text>
-                <path class="target-line" d="M80 145 C230 132 350 145 500 142 C610 140 680 138 730 130" />
-                <path class="area" d="M80 292 C205 255 290 215 374 174 C474 120 552 100 662 105 C707 107 731 77 738 55 L738 318 L80 318 Z" />
-                <path class="trend" d="M80 292 C205 255 290 215 374 174 C474 120 552 100 662 105 C707 107 731 77 738 55" />
-                <g class="points">
-                  <circle cx="225" cy="250" r="7" />
-                  <circle cx="365" cy="174" r="7" />
-                  <circle cx="650" cy="107" r="7" />
-                  <circle cx="734" cy="58" r="7" />
-                </g>
-                <g class="axis-labels">
-                  <text x="80" y="350">Mon</text><text x="210" y="350">Tue</text><text x="340" y="350">Wed</text>
-                  <text x="470" y="350">Thu</text><text x="590" y="350">Fri</text><text x="705" y="350">Sat</text><text x="742" y="350">Sun</text>
-                </g>
-              </svg>
+              <svg id="analytics-sensor-chart" viewBox="0 0 760 360" role="img" aria-label="Supabase sensor trend chart"></svg>
             </div>
           </article>
 
           <aside class="analytics-side">
             <article class="card nutrients-card">
               <div class="card-title">
-                <h2>Macronutrients (NPK)</h2>
+                <h2>Sensor Averages</h2>
                 <i data-lucide="flask-conical"></i>
               </div>
-              <div class="nutrient"><span>Nitrogen (N)</span><strong>140 ppm</strong><div><b style="width:78%"></b></div></div>
-              <div class="nutrient"><span>Phosphorus (P)</span><strong>45 ppm</strong><div><b style="width:46%;--bar:#35d0c0"></b></div></div>
-              <div class="nutrient alert"><span>Potassium (K)</span><strong>180 ppm (High)</strong><div><b style="width:94%;--bar:#cc2d3f"></b></div></div>
+              <div class="nutrient"><span>Temperature</span><strong id="avg-temperature">-- C</strong><div><b id="avg-temperature-bar" style="width:0%"></b></div></div>
+              <div class="nutrient"><span>Humidity</span><strong id="avg-humidity">--%</strong><div><b id="avg-humidity-bar" style="width:0%;--bar:#35d0c0"></b></div></div>
+              <div class="nutrient"><span>Soil Moisture</span><strong id="avg-soil">--%</strong><div><b id="avg-soil-bar" style="width:0%;--bar:#007a5f"></b></div></div>
             </article>
             <article class="water-card">
-              <span>Water Usage</span>
-              <p>Daily Average</p>
-              <strong>42.5</strong>
-              <em>Liters / day</em>
+              <span>Water Reservoir</span>
+              <p id="water-analytics-label">Average level</p>
+              <strong id="avg-water-level">--</strong>
+              <em id="water-analytics-detail">Waiting for Supabase data</em>
               <i data-lucide="droplet"></i>
             </article>
           </aside>
@@ -154,6 +135,7 @@
   </div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

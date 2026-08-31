@@ -1523,3 +1523,10 @@ td svg,
 .days .selected em {
   color: var(--green-2);
 }
+.live-dot.is-offline {
+  color: #9b2635;
+}
+
+.live-dot.is-offline::before {
+  background: #d94b62;
+}

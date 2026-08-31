@@ -29,7 +29,7 @@
 #include <DHT.h>
 
 // ---------- WiFi settings ----------
-const char* WIFI_SSID = "B33_20_samleezx-TIME";
+const char* WIFI_SSID = "B33-20_samleezx-TIME";
 const char* WIFI_PASSWORD = "01127118938";
 
 // ---------- MQTT settings ----------
@@ -41,8 +41,8 @@ const char* SENSOR_OUTPUT_FORMAT = "{\"temperature\":%.1f,\"humidity\":%.1f,\"so
 
 // ---------- Pin assignment ----------
 const int DHT_PIN = 16;         // DHT11 data pin
-const int SOIL_PIN = 33;        // Soil moisture analog output. Use AO, not DO.
-const int SOIL_DIGITAL_PIN = 23; // Optional soil moisture digital output. Use DO.
+const int SOIL_PIN = 33;        // Soil moisture analog output AO. Must use ADC pin: 32, 33, 34, 35, 36, or 39.
+const int SOIL_DIGITAL_PIN = 23; // Optional soil moisture digital output DO.
 const int ULTRASONIC_TRIG_PIN = 18; // Ultrasonic sensor TRIG
 const int ULTRASONIC_ECHO_PIN = 19; // Ultrasonic sensor ECHO through voltage divider if sensor is 5V
 
@@ -52,6 +52,11 @@ const int ULTRASONIC_ECHO_PIN = 19; // Ultrasonic sensor ECHO through voltage di
 // Calibration values. Adjust after checking your real sensor readings.
 const int SOIL_DRY_VALUE = 3200;
 const int SOIL_WET_VALUE = 1200;
+const int SOIL_DISCONNECTED_LOW = 50;
+const int SOIL_DISCONNECTED_HIGH = 4045;
+const int SOIL_SAMPLE_COUNT = 15;
+const int SOIL_SAMPLE_DELAY_MS = 8;
+const int SOIL_MAX_SAMPLE_SPREAD = 900;
 
 // Tank calibration for ultrasonic water level.
 // EMPTY distance = distance from sensor to water when tank is empty.
@@ -86,7 +91,43 @@ int clampPercent(int value) {
   return value;
 }
 
-int soilPercentFromRaw(int rawValue) {
+bool isSoilRawValid(int rawValue, int sampleSpread) {
+  if (rawValue <= SOIL_DISCONNECTED_LOW || rawValue >= SOIL_DISCONNECTED_HIGH) {
+    return false;
+  }
+
+  if (sampleSpread > SOIL_MAX_SAMPLE_SPREAD) {
+    return false;
+  }
+
+  return true;
+}
+
+int readStableSoilRaw(int* sampleSpread) {
+  long total = 0;
+  int minimum = 4095;
+  int maximum = 0;
+
+  for (int i = 0; i < SOIL_SAMPLE_COUNT; i++) {
+    int raw = analogRead(SOIL_PIN);
+    total += raw;
+    if (raw < minimum) minimum = raw;
+    if (raw > maximum) maximum = raw;
+    delay(SOIL_SAMPLE_DELAY_MS);
+  }
+
+  if (sampleSpread) {
+    *sampleSpread = maximum - minimum;
+  }
+
+  return total / SOIL_SAMPLE_COUNT;
+}
+
+int soilPercentFromRaw(int rawValue, int sampleSpread) {
+  if (!isSoilRawValid(rawValue, sampleSpread)) {
+    return -1;
+  }
+
   int percent = map(rawValue, SOIL_DRY_VALUE, SOIL_WET_VALUE, 0, 100);
   return clampPercent(percent);
 }
@@ -130,8 +171,12 @@ void printReadableSensorData(float temperature, float humidity, int soilMoisture
   Serial.println("%");
 
   Serial.print("soil moisture: ");
-  Serial.print(soilMoisture);
-  Serial.println("%");
+  if (soilMoisture < 0) {
+    Serial.println("not detected");
+  } else {
+    Serial.print(soilMoisture);
+    Serial.println("%");
+  }
 
   Serial.print("water level: ");
   Serial.println(waterLevel >= 80 ? "full" : "not full");
@@ -203,11 +248,12 @@ void publishSensorData() {
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
 
-  int soilRaw = analogRead(SOIL_PIN);
+  int soilSampleSpread = 0;
+  int soilRaw = readStableSoilRaw(&soilSampleSpread);
   int soilDigital = digitalRead(SOIL_DIGITAL_PIN);
   float waterDistanceCm = readUltrasonicDistanceCm();
 
-  int soilMoisture = soilPercentFromRaw(soilRaw);
+  int soilMoisture = soilPercentFromRaw(soilRaw, soilSampleSpread);
   int waterLevel = waterPercentFromDistance(waterDistanceCm);
   const char* waterStatus = waterLevelStatus(waterLevel);
 
@@ -246,6 +292,7 @@ void setup() {
 
   dht.begin();
   analogReadResolution(12);
+  pinMode(SOIL_PIN, INPUT);
   pinMode(SOIL_DIGITAL_PIN, INPUT);
   pinMode(ULTRASONIC_TRIG_PIN, OUTPUT);
   pinMode(ULTRASONIC_ECHO_PIN, INPUT);

@@ -141,21 +141,16 @@
               <h2>Active Rules</h2>
               <button class="ghost-icon" type="button" aria-label="Rule settings"><i data-lucide="sliders-horizontal"></i></button>
             </div>
-            <div class="rule active">
+            <button class="rule active" type="button" data-rule-actuator="pump" aria-pressed="true">
               <i data-lucide="droplet"></i>
-              <div><strong>Auto-Watering</strong><p>Triggers when Soil Moisture &lt; 35% for Zone A.</p><button type="button">Edit</button></div>
+              <div><strong>Auto-Watering</strong><p>Controls relay IN2 pump from this schedule rule.</p><span id="schedule-pump-rule-status">Pump ON</span></div>
               <span class="switch"></span>
-            </div>
-            <div class="rule active">
+            </button>
+            <button class="rule active" type="button" data-rule-actuator="fan" aria-pressed="true">
               <i data-lucide="thermometer"></i>
-              <div><strong>Temp Control</strong><p>Activate exhaust fans if Ambient Temp &gt; 28°C.</p><button type="button">Edit</button></div>
+              <div><strong>Temp Control</strong><p>Controls relay IN1 fan from this schedule rule.</p><span id="schedule-fan-rule-status">Fan ON</span></div>
               <span class="switch"></span>
-            </div>
-            <div class="rule disabled">
-              <i data-lucide="sun"></i>
-              <div><strong>Supplemental Light</strong><p>On at 18:00, Off at 22:00. (Currently disabled)</p><button type="button">Edit</button></div>
-              <span class="switch"></span>
-            </div>
+            </button>
           </article>
         </div>
       </section>
@@ -163,6 +158,7 @@
   </div>
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

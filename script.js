@@ -4,6 +4,143 @@ document.querySelectorAll("[data-toggle]").forEach((button) => {
   });
 });
 
+const MQTT_RELAY_CONFIG = {
+  url: "wss://broker.hivemq.com:8884/mqtt",
+  options: {
+    clientId: `smartplant_ui_${Math.random().toString(16).slice(2)}`,
+    clean: true,
+    connectTimeout: 6000,
+    reconnectPeriod: 3000,
+  },
+  topics: {
+    pump: "smartplantation/control/fan",
+    fan: "smartplantation/control/pump",
+    status: "smartplantation/status/relay",
+  },
+};
+
+let relayClient = null;
+
+function setRelayConnectionStatus(text, isConnected = false) {
+  const element = document.getElementById("relay-mqtt-status");
+  if (!element) return;
+  element.textContent = text;
+  element.classList.toggle("is-offline", !isConnected);
+}
+
+function setActuatorState(name, isOn) {
+  const button = document.querySelector(`[data-actuator="${name}"]`);
+  const status = document.getElementById(`${name}-relay-status`);
+
+  if (button) {
+    button.classList.toggle("active", isOn);
+    button.setAttribute("aria-pressed", String(isOn));
+  }
+
+  if (status) {
+    status.textContent = isOn ? "ON" : "OFF";
+  }
+}
+
+function publishRelayCommand(name, isOn) {
+  const topic = MQTT_RELAY_CONFIG.topics[name];
+  if (!topic || !relayClient || !relayClient.connected) {
+    setRelayConnectionStatus("MQTT offline", false);
+    return;
+  }
+
+  relayClient.publish(topic, isOn ? "ON" : "OFF", { qos: 0, retain: false }, (error) => {
+    if (error) {
+      console.error(error);
+      setRelayConnectionStatus("MQTT publish failed", false);
+    }
+  });
+}
+
+function handleRelayStatus(payload) {
+  let status = payload;
+  if (typeof status === "string") {
+    try {
+      status = JSON.parse(status);
+    } catch (error) {
+      console.warn("Relay status is not JSON", payload);
+      return;
+    }
+  }
+
+  if (status.pump) {
+    const isOn = String(status.pump).toUpperCase() === "ON";
+    setActuatorState("fan", isOn);
+    const fanRule = document.querySelector('[data-rule-actuator="fan"]');
+    const fanLabel = document.getElementById("schedule-fan-rule-status");
+    if (fanRule) fanRule.classList.toggle("active", isOn);
+    if (fanRule) fanRule.setAttribute("aria-pressed", String(isOn));
+    if (fanLabel) fanLabel.textContent = `Fan ${isOn ? "ON" : "OFF"}`;
+  }
+  if (status.fan) {
+    const isOn = String(status.fan).toUpperCase() === "ON";
+    setActuatorState("pump", isOn);
+    const pumpRule = document.querySelector('[data-rule-actuator="pump"]');
+    const pumpLabel = document.getElementById("schedule-pump-rule-status");
+    if (pumpRule) pumpRule.classList.toggle("active", isOn);
+    if (pumpRule) pumpRule.setAttribute("aria-pressed", String(isOn));
+    if (pumpLabel) pumpLabel.textContent = `Pump ${isOn ? "ON" : "OFF"}`;
+  }
+}
+
+function initRelayMqttControls() {
+  const actuatorButtons = document.querySelectorAll("[data-actuator-toggle]");
+  const ruleButtons = document.querySelectorAll("[data-rule-actuator]");
+  if (!actuatorButtons.length && !ruleButtons.length) return;
+
+  actuatorButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.actuator;
+      const nextState = !button.classList.contains("active");
+      setActuatorState(name, nextState);
+      publishRelayCommand(name, nextState);
+    });
+  });
+
+  ruleButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.ruleActuator;
+      const nextState = !button.classList.contains("active");
+      button.classList.toggle("active", nextState);
+      button.setAttribute("aria-pressed", String(nextState));
+      const label = document.getElementById(`schedule-${name}-rule-status`);
+      if (label) label.textContent = `${name === "pump" ? "Pump" : "Fan"} ${nextState ? "ON" : "OFF"}`;
+      publishRelayCommand(name, nextState);
+    });
+  });
+
+  if (!window.mqtt) {
+    setRelayConnectionStatus("MQTT library missing", false);
+    return;
+  }
+
+  setRelayConnectionStatus("MQTT connecting", false);
+  relayClient = window.mqtt.connect(MQTT_RELAY_CONFIG.url, MQTT_RELAY_CONFIG.options);
+
+  relayClient.on("connect", () => {
+    setRelayConnectionStatus("MQTT connected", true);
+    relayClient.subscribe(MQTT_RELAY_CONFIG.topics.status);
+  });
+
+  relayClient.on("reconnect", () => setRelayConnectionStatus("MQTT reconnecting", false));
+  relayClient.on("offline", () => setRelayConnectionStatus("MQTT offline", false));
+  relayClient.on("error", (error) => {
+    console.error(error);
+    setRelayConnectionStatus("MQTT error", false);
+  });
+
+  relayClient.on("message", (topic, payload) => {
+    if (topic === MQTT_RELAY_CONFIG.topics.status) {
+      handleRelayStatus(payload.toString());
+    }
+  });
+}
+
 document.querySelectorAll(".segmented").forEach((group) => {
   group.addEventListener("click", (event) => {
     if (!(event.target instanceof HTMLButtonElement)) return;
@@ -102,7 +239,11 @@ const SUPABASE_CONFIG = {
   url: "https://ntvknrblgmjauaznenpk.supabase.co",
   key: "sb_publishable_7Kgk2nj4WLTAuX86ucXDKw_CQ3J18lh",
   table: "plant_sensor_readings",
+  limit: 500,
 };
+
+let cachedSupabaseReadings = [];
+let analyticsRange = "7";
 
 function formatNumber(value, digits = 1) {
   const number = Number(value);
@@ -112,7 +253,7 @@ function formatNumber(value, digits = 1) {
 
 function formatPercent(value) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return "--%";
+  if (!Number.isFinite(number) || number < 0) return "--%";
   return `${Math.round(number)}%`;
 }
 
@@ -139,7 +280,7 @@ function setRingValue(name, value) {
   if (!ring) return;
 
   const number = Number(value);
-  ring.style.setProperty("--value", Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : 0);
+  ring.style.setProperty("--value", Number.isFinite(number) && number >= 0 ? Math.max(0, Math.min(100, number)) : 0);
 }
 
 function updateLiveSensorUI(readings) {
@@ -187,6 +328,146 @@ function updateDashboardReadingsTable(readings) {
   `).join("");
 }
 
+function numericReadings(readings, field) {
+  return readings
+    .map((reading) => Number(reading[field]))
+    .filter((number) => Number.isFinite(number));
+}
+
+function average(values) {
+  if (!values.length) return null;
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function percentFor(value, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(100, (number / max) * 100));
+}
+
+function filterReadingsByRange(readings) {
+  if (analyticsRange === "ytd") {
+    const start = new Date(new Date().getFullYear(), 0, 1);
+    return readings.filter((reading) => new Date(reading.created_at) >= start);
+  }
+
+  const days = Number(analyticsRange);
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  return readings.filter((reading) => new Date(reading.created_at) >= start);
+}
+
+function buildTrendPath(points, field) {
+  const values = points.map((reading) => Number(reading[field]));
+  const validValues = values.filter((value) => Number.isFinite(value));
+  if (validValues.length < 2) return "";
+
+  const min = Math.min(...validValues);
+  const max = Math.max(...validValues);
+  const range = max - min || 1;
+  const width = 640;
+  const height = 240;
+  const left = 80;
+  const top = 58;
+
+  return points.map((reading, index) => {
+    const raw = Number(reading[field]);
+    const value = Number.isFinite(raw) ? raw : min;
+    const x = left + (index / Math.max(1, points.length - 1)) * width;
+    const y = top + height - ((value - min) / range) * height;
+    return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+}
+
+function updateAnalyticsSummary(readings) {
+  const chart = document.getElementById("analytics-sensor-chart");
+  if (!chart) return;
+
+  const filtered = filterReadingsByRange(readings);
+  const chronological = filtered.slice().reverse();
+  const latest = filtered[0];
+
+  setText("analytics-sync-status", readings.length ? `Connected to Supabase • Last sync: ${formatReadingTime(readings[0].created_at)}` : "Connected to Supabase • No readings yet");
+  setText("analytics-chart-subtitle", filtered.length ? `${filtered.length} readings from Supabase` : "No readings for selected range");
+
+  const tempAvg = average(numericReadings(filtered, "temperature"));
+  const humidityAvg = average(numericReadings(filtered, "humidity"));
+  const soilAvg = average(numericReadings(filtered, "soil_moisture"));
+  const waterAvg = average(numericReadings(filtered, "water_level"));
+  const distanceAvg = average(numericReadings(filtered, "water_distance_cm"));
+
+  setText("avg-temperature", tempAvg === null ? "-- C" : `${formatNumber(tempAvg)} C`);
+  setText("avg-humidity", humidityAvg === null ? "--%" : `${formatNumber(humidityAvg)}%`);
+  setText("avg-soil", soilAvg === null ? "--%" : `${Math.round(soilAvg)}%`);
+  setText("avg-water-level", waterAvg === null ? "--" : `${Math.round(waterAvg)}%`);
+  setText("water-analytics-detail", distanceAvg === null ? "No ultrasonic reading" : `Avg distance ${formatNumber(distanceAvg)} cm`);
+
+  const tempBar = document.getElementById("avg-temperature-bar");
+  const humidityBar = document.getElementById("avg-humidity-bar");
+  const soilBar = document.getElementById("avg-soil-bar");
+  if (tempBar) tempBar.style.width = `${percentFor(tempAvg, 50)}%`;
+  if (humidityBar) humidityBar.style.width = `${percentFor(humidityAvg, 100)}%`;
+  if (soilBar) soilBar.style.width = `${percentFor(soilAvg, 100)}%`;
+
+  const firstSoil = Number(chronological[0]?.soil_moisture);
+  const latestSoil = Number(latest?.soil_moisture);
+  const trend = Number.isFinite(firstSoil) && Number.isFinite(latestSoil) ? latestSoil - firstSoil : null;
+  setText("analytics-trend-badge", trend === null ? "--" : `${trend >= 0 ? "+" : ""}${Math.round(trend)}% soil`);
+
+  if (chronological.length < 2) {
+    chart.innerHTML = '<text x="260" y="180">Need at least 2 Supabase readings for trend chart</text>';
+    return;
+  }
+
+  const soilPath = buildTrendPath(chronological, "soil_moisture");
+  const waterPath = buildTrendPath(chronological, "water_level");
+  const tempPath = buildTrendPath(chronological, "temperature");
+  chart.innerHTML = `
+    <path class="grid-line" d="M60 58H730M60 145H730M60 235H730M60 318H730" />
+    <text x="0" y="62">High</text>
+    <text x="0" y="239">Low</text>
+    <text x="80" y="350">Oldest</text>
+    <text x="650" y="350">Latest</text>
+    <path class="trend" d="${soilPath}" />
+    <path class="target-line" d="${waterPath}" />
+    <path class="grid-line" d="${tempPath}" style="stroke:#7bc9b3;stroke-width:4;stroke-dasharray:none;" />
+    <circle cx="720" cy="58" r="6" fill="#40dacb" />
+    <text x="600" y="32">Soil / Water / Temp</text>
+  `;
+}
+
+function exportSensorCsv() {
+  const readings = filterReadingsByRange(cachedSupabaseReadings);
+  if (!readings.length) return;
+
+  const columns = ["created_at", "temperature", "humidity", "soil_moisture", "soil_digital", "water_level", "water_level_status", "water_distance_cm", "soil_raw"];
+  const lines = [
+    columns.join(","),
+    ...readings.map((reading) => columns.map((column) => JSON.stringify(reading[column] ?? "")).join(",")),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `plant-sensor-readings-${analyticsRange}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function initAnalyticsControls() {
+  document.querySelectorAll("[data-analytics-range]").forEach((button) => {
+    button.addEventListener("click", () => {
+      analyticsRange = button.dataset.analyticsRange || "7";
+      document.querySelectorAll("[data-analytics-range]").forEach((item) => item.classList.toggle("active", item === button));
+      updateAnalyticsSummary(cachedSupabaseReadings);
+      updateAnalyticsReadingsTable(filterReadingsByRange(cachedSupabaseReadings));
+    });
+  });
+
+  const exportButton = document.getElementById("export-sensor-csv");
+  if (exportButton) exportButton.addEventListener("click", exportSensorCsv);
+}
+
 function updateAnalyticsReadingsTable(readings) {
   const table = document.getElementById("analytics-readings-table");
   if (!table) return;
@@ -211,7 +492,7 @@ function updateAnalyticsReadingsTable(readings) {
 }
 
 async function fetchSupabaseReadings() {
-  const endpoint = `${SUPABASE_CONFIG.url}/rest/v1/${SUPABASE_CONFIG.table}?select=*&order=created_at.desc&limit=20`;
+  const endpoint = `${SUPABASE_CONFIG.url}/rest/v1/${SUPABASE_CONFIG.table}?select=*&order=created_at.desc&limit=${SUPABASE_CONFIG.limit}`;
   const response = await fetch(endpoint, {
     headers: {
       apikey: SUPABASE_CONFIG.key,
@@ -236,9 +517,12 @@ async function loadSupabaseSensorData() {
 
   try {
     const readings = await fetchSupabaseReadings();
+    cachedSupabaseReadings = readings;
+    const analyticsReadings = filterReadingsByRange(readings);
     updateLiveSensorUI(readings);
     updateDashboardReadingsTable(readings);
-    updateAnalyticsReadingsTable(readings);
+    updateAnalyticsSummary(readings);
+    updateAnalyticsReadingsTable(analyticsReadings);
 
     if (window.lucide) {
       window.lucide.createIcons({ attrs: { "stroke-width": 2 } });
@@ -398,6 +682,8 @@ async function loadWeatherData() {
   }
 }
 
+initRelayMqttControls();
+initAnalyticsControls();
 loadWeatherData();
 loadSupabaseSensorData();
 setInterval(loadSupabaseSensorData, 10000);

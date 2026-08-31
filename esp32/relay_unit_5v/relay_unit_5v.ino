@@ -22,7 +22,7 @@
 #include <PubSubClient.h>
 
 // ---------- WiFi settings ----------
-const char* WIFI_SSID = "B33-20_samleezx-TIMEE";
+const char* WIFI_SSID = "B33-20_samleezx-TIME";
 const char* WIFI_PASSWORD = "01127118938";
 
 // ---------- MQTT settings ----------
