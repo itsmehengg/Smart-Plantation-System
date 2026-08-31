@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartPlant Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main sidebar">
+      <a class="brand" href="dashboard.html" aria-label="SmartPlant home">
+        <span class="brand-mark"><i data-lucide="sprout"></i></span>
+        <span>
+          <strong>SmartPlant</strong>
+          <small>Precision Growth</small>
+        </span>
+      </a>
+
+      <nav class="side-nav" aria-label="Section navigation">
+        <a class="side-link active" href="dashboard.html"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+        <a class="side-link " href="analytics.html"><i data-lucide="chart-no-axes-combined"></i><span>Analytics</span></a>
+        <a class="side-link " href="schedule.html"><i data-lucide="calendar-days"></i><span>Schedule</span></a>
+      </nav>
+
+      <button class="add-device" type="button">
+        <i data-lucide="plus"></i>
+        <span>Add New Device</span>
+      </button>
+
+      <div class="sidebar-bottom">
+        <button class="utility-link" type="button">
+          <i data-lucide="circle-help"></i>
+          <span>Support</span>
+        </button>
+        <button class="utility-link" type="button">
+          <i data-lucide="log-out"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <nav class="top-nav" aria-label="View navigation">
+          <a class="top-link active" href="dashboard.html">Live View</a>
+          <a class="top-link " href="analytics.html">History</a>
+          <a class="top-link " href="schedule.html">Reports</a>
+        </nav>
+        <div class="top-actions">
+          <span class="health"><span></span>System Healthy</span>
+          <button class="icon-btn has-dot" type="button" aria-label="Notifications"><i data-lucide="bell"></i></button>
+          <button class="icon-btn" type="button" aria-label="Network status"><i data-lucide="wifi"></i></button>
+          <button class="icon-btn" type="button" aria-label="Cloud sync"><i data-lucide="cloud"></i></button>
+        </div>
+      </header>
+
+      <section class="page active" id="dashboard-page" data-page="dashboard">
+        <div class="dashboard-grid">
+          <article class="hero-card card">
+            <div>
+              <h1>Morning, Botanist.</h1>
+              <p id="sensor-sync-summary">Loading latest greenhouse reading from Supabase.</p>
+            </div>
+            <div class="hero-tags">
+              <span><i data-lucide="droplet"></i>Reservoir: <strong id="live-water-status">--</strong></span>
+              <span><i data-lucide="database"></i><strong id="live-last-sync">Syncing</strong></span>
+            </div>
+          </article>
+
+          <article class="micro-card card" data-weather-dashboard>
+            <div class="section-kicker">Local Microclimate <span id="weather-location">Kuala Lumpur</span></div>
+            <div class="weather-line"><strong id="weather-temp">--°C</strong><span id="weather-summary">Loading forecast</span><i data-lucide="flower-2"></i></div>
+            <dl class="metric-list">
+              <div><dt>Today</dt><dd id="weather-date">Fetching</dd></div>
+              <div><dt>Temp Range</dt><dd id="weather-range">-- / --°C</dd></div>
+              <div><dt>Forecast</dt><dd><span id="weather-forecast">Checking MET Malaysia</span> <i data-lucide="arrow-right"></i></dd></div>
+              <div><dt>Warnings</dt><dd id="weather-warning">Checking alerts</dd></div>
+            </dl>
+          </article>
+
+          <article class="card vital-card">
+            <div class="card-title">
+              <h2>Vital Metrics</h2>
+              <button class="ghost-icon" type="button" aria-label="More metric options"><i data-lucide="ellipsis"></i></button>
+            </div>
+            <div class="gauge-row">
+              <div class="gauge-block">
+                <div class="ring" style="--value:0;--ring:#007a5f" data-ring="soil_moisture"><span id="live-soil-moisture">--%</span></div>
+                <p>Soil Moisture</p>
+              </div>
+              <div class="gauge-block">
+                <div class="ring" style="--value:0;--ring:#36d2c1" data-ring="water_level"><span id="live-water-level">--%</span></div>
+                <p>Water Level</p>
+              </div>
+              <div class="gauge-block">
+                <div class="ring" style="--value:0;--ring:#7bc9b3" data-ring="temperature"><span id="live-temperature">--°</span></div>
+                <p>Ambient Temp</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="card chart-card">
+            <div class="card-title">
+              <div>
+                <h2>Recent Sensor Readings</h2>
+                <p id="sensor-history-status">Loading Supabase history</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Time</th><th>Temp</th><th>Humidity</th><th>Soil</th><th>Water</th><th>Distance</th></tr>
+                </thead>
+                <tbody id="latest-readings-table">
+                  <tr><td colspan="6">Loading readings</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card actuator-card">
+            <div class="card-title">
+              <h2>Actuators</h2>
+              <span class="live-dot">Live</span>
+            </div>
+            <div class="device-list">
+              <button class="device-row" type="button" data-toggle>
+                <span class="device-icon"><i data-lucide="droplets"></i></span>
+                <span><strong>Water Pump</strong><small>Zone A Reservoir</small></span>
+                <span class="switch"></span>
+              </button>
+              <button class="device-row active" type="button" data-toggle>
+                <span class="device-icon"><i data-lucide="fan"></i></span>
+                <span><strong>Circulation Fan</strong><small>Main Canopy</small></span>
+                <span class="switch"></span>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
+

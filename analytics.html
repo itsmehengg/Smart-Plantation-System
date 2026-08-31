@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartPlant Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main sidebar">
+      <a class="brand" href="dashboard.html" aria-label="SmartPlant home">
+        <span class="brand-mark"><i data-lucide="sprout"></i></span>
+        <span>
+          <strong>SmartPlant</strong>
+          <small>Precision Growth</small>
+        </span>
+      </a>
+
+      <nav class="side-nav" aria-label="Section navigation">
+        <a class="side-link " href="dashboard.html"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+        <a class="side-link active" href="analytics.html"><i data-lucide="chart-no-axes-combined"></i><span>Analytics</span></a>
+        <a class="side-link " href="schedule.html"><i data-lucide="calendar-days"></i><span>Schedule</span></a>
+      </nav>
+
+      <button class="add-device" type="button">
+        <i data-lucide="plus"></i>
+        <span>Add New Device</span>
+      </button>
+
+      <div class="sidebar-bottom">
+        <button class="utility-link" type="button">
+          <i data-lucide="circle-help"></i>
+          <span>Support</span>
+        </button>
+        <button class="utility-link" type="button">
+          <i data-lucide="log-out"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <nav class="top-nav" aria-label="View navigation">
+          <a class="top-link " href="dashboard.html">Live View</a>
+          <a class="top-link active" href="analytics.html">History</a>
+          <a class="top-link " href="schedule.html">Reports</a>
+        </nav>
+        <div class="top-actions">
+          <span class="health"><span></span>System Healthy</span>
+          <button class="icon-btn has-dot" type="button" aria-label="Notifications"><i data-lucide="bell"></i></button>
+          <button class="icon-btn" type="button" aria-label="Network status"><i data-lucide="wifi"></i></button>
+          <button class="icon-btn" type="button" aria-label="Cloud sync"><i data-lucide="cloud"></i></button>
+        </div>
+      </header>
+
+      <section class="page active" id="analytics-page" data-page="analytics">
+        <div class="page-heading">
+          <div>
+            <h1>Historical Analytics</h1>
+            <p><i data-lucide="database"></i><span id="analytics-sync-status">Loading Supabase readings</span></p>
+          </div>
+          <div class="heading-actions">
+            <button class="outline-btn" type="button"><i data-lucide="download"></i>Export CSV</button>
+            <div class="segmented">
+              <button class="active" type="button">7D</button>
+              <button type="button">30D</button>
+              <button type="button">YTD</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="analytics-grid">
+          <article class="card yield-card">
+            <div class="chart-top-line"></div>
+            <div class="card-title">
+              <div>
+                <h2>Biomass Yield vs. Target</h2>
+                <p>Zone Alpha • Strain: Indica Hybrid</p>
+              </div>
+              <span class="gain">↗ +14.2%</span>
+            </div>
+            <div class="yield-chart">
+              <svg viewBox="0 0 760 360" role="img" aria-label="Biomass yield chart">
+                <path class="grid-line" d="M60 58H730M60 145H730M60 235H730M60 318H730" />
+                <text x="0" y="62">100kg</text>
+                <text x="0" y="149">75kg</text>
+                <text x="0" y="239">25kg</text>
+                <text x="0" y="322">0</text>
+                <path class="target-line" d="M80 145 C230 132 350 145 500 142 C610 140 680 138 730 130" />
+                <path class="area" d="M80 292 C205 255 290 215 374 174 C474 120 552 100 662 105 C707 107 731 77 738 55 L738 318 L80 318 Z" />
+                <path class="trend" d="M80 292 C205 255 290 215 374 174 C474 120 552 100 662 105 C707 107 731 77 738 55" />
+                <g class="points">
+                  <circle cx="225" cy="250" r="7" />
+                  <circle cx="365" cy="174" r="7" />
+                  <circle cx="650" cy="107" r="7" />
+                  <circle cx="734" cy="58" r="7" />
+                </g>
+                <g class="axis-labels">
+                  <text x="80" y="350">Mon</text><text x="210" y="350">Tue</text><text x="340" y="350">Wed</text>
+                  <text x="470" y="350">Thu</text><text x="590" y="350">Fri</text><text x="705" y="350">Sat</text><text x="742" y="350">Sun</text>
+                </g>
+              </svg>
+            </div>
+          </article>
+
+          <aside class="analytics-side">
+            <article class="card nutrients-card">
+              <div class="card-title">
+                <h2>Macronutrients (NPK)</h2>
+                <i data-lucide="flask-conical"></i>
+              </div>
+              <div class="nutrient"><span>Nitrogen (N)</span><strong>140 ppm</strong><div><b style="width:78%"></b></div></div>
+              <div class="nutrient"><span>Phosphorus (P)</span><strong>45 ppm</strong><div><b style="width:46%;--bar:#35d0c0"></b></div></div>
+              <div class="nutrient alert"><span>Potassium (K)</span><strong>180 ppm (High)</strong><div><b style="width:94%;--bar:#cc2d3f"></b></div></div>
+            </article>
+            <article class="water-card">
+              <span>Water Usage</span>
+              <p>Daily Average</p>
+              <strong>42.5</strong>
+              <em>Liters / day</em>
+              <i data-lucide="droplet"></i>
+            </article>
+          </aside>
+
+          <article class="card log-card">
+            <div class="card-title">
+              <h2>Detailed Event Logs</h2>
+              <button class="ghost-icon" type="button" aria-label="Filter logs"><i data-lucide="list-filter"></i></button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Timestamp</th><th>Event Type</th><th>Zone</th><th>Value</th><th>Status</th></tr>
+                </thead>
+                <tbody id="analytics-readings-table">
+                  <tr><td colspan="5">Loading readings from Supabase</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-foot">
+              <span id="analytics-table-foot">Waiting for data</span>
+              <span><i data-lucide="chevron-left"></i><i data-lucide="chevron-right"></i></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+

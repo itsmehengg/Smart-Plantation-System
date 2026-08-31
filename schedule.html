@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartPlant Schedule</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main sidebar">
+      <a class="brand" href="dashboard.html" aria-label="SmartPlant home">
+        <span class="brand-mark"><i data-lucide="sprout"></i></span>
+        <span>
+          <strong>SmartPlant</strong>
+          <small>Precision Growth</small>
+        </span>
+      </a>
+
+      <nav class="side-nav" aria-label="Section navigation">
+        <a class="side-link " href="dashboard.html"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+        <a class="side-link " href="analytics.html"><i data-lucide="chart-no-axes-combined"></i><span>Analytics</span></a>
+        <a class="side-link active" href="schedule.html"><i data-lucide="calendar-days"></i><span>Schedule</span></a>
+      </nav>
+
+      <button class="add-device" type="button">
+        <i data-lucide="plus"></i>
+        <span>Add New Device</span>
+      </button>
+
+      <div class="sidebar-bottom">
+        <button class="utility-link" type="button">
+          <i data-lucide="circle-help"></i>
+          <span>Support</span>
+        </button>
+        <button class="utility-link" type="button">
+          <i data-lucide="log-out"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <nav class="top-nav" aria-label="View navigation">
+          <a class="top-link " href="dashboard.html">Live View</a>
+          <a class="top-link " href="analytics.html">History</a>
+          <a class="top-link active" href="schedule.html">Reports</a>
+        </nav>
+        <div class="top-actions">
+          <span class="health"><span></span>System Healthy</span>
+          <button class="icon-btn has-dot" type="button" aria-label="Notifications"><i data-lucide="bell"></i></button>
+          <button class="icon-btn" type="button" aria-label="Network status"><i data-lucide="wifi"></i></button>
+          <button class="icon-btn" type="button" aria-label="Cloud sync"><i data-lucide="cloud"></i></button>
+        </div>
+      </header>
+
+      <section class="page active" id="schedule-page" data-page="schedule">
+        <div class="page-heading schedule-heading">
+          <div>
+            <h1>Schedule & Automation</h1>
+            <p>Manage your automated growth protocols and upcoming triggers.</p>
+          </div>
+          <button class="primary-btn" type="button"><i data-lucide="circle-plus"></i>Add Automation Trigger</button>
+        </div>
+
+        <div class="schedule-grid">
+          <div class="schedule-main">
+            <article class="card weekly-card">
+              <div class="card-title">
+                <h2>Weekly Overview</h2>
+                <div class="week-range"><i data-lucide="chevron-left"></i>Oct 24 - 30<i data-lucide="chevron-right"></i></div>
+              </div>
+              <div class="days" data-weekly-weather>
+                <button type="button" data-weather-day="0"><span>Mon</span><strong>--</strong><small></small><em>Loading</em><b>-- / --°C</b></button>
+                <button type="button" data-weather-day="1"><span>Tue</span><strong>--</strong><em>Loading</em><b>-- / --°C</b></button>
+                <button class="selected" type="button" data-weather-day="2"><span>Wed</span><strong>--</strong><small></small><em>Loading</em><b>-- / --°C</b></button>
+                <button type="button" data-weather-day="3"><span>Thu</span><strong>--</strong><small></small><em>Loading</em><b>-- / --°C</b></button>
+                <button type="button" data-weather-day="4"><span>Fri</span><strong>--</strong><em>Loading</em><b>-- / --°C</b></button>
+                <button type="button" data-weather-day="5"><span>Sat</span><strong>--</strong><em>Loading</em><b>-- / --°C</b></button>
+                <button type="button" data-weather-day="6"><span>Sun</span><strong>--</strong><em>Loading</em><b>-- / --°C</b></button>
+              </div>
+            </article>
+            <article class="card weather-schedule-card" data-weather-schedule>
+              <div class="card-title">
+                <div>
+                  <h2><i data-lucide="cloud-sun"></i>Weather Intelligence</h2>
+                  <p id="schedule-weather-location">Kuala Lumpur forecast from MET Malaysia</p>
+                </div>
+                <span class="live-dot" id="schedule-weather-sync">Live</span>
+              </div>
+              <div class="weather-alert-grid">
+                <div class="weather-alert-item">
+                  <span>Today Forecast</span>
+                  <strong id="schedule-weather-forecast">Loading forecast</strong>
+                  <small id="schedule-weather-range">-- / --°C</small>
+                </div>
+                <div class="weather-alert-item">
+                  <span>Weather Warning</span>
+                  <strong id="schedule-weather-warning">Checking alerts</strong>
+                  <small id="schedule-weather-warning-detail">No warning loaded yet</small>
+                </div>
+                <div class="weather-alert-item">
+                  <span>Earthquake</span>
+                  <strong id="schedule-earthquake-status">Checking</strong>
+                  <small id="schedule-earthquake-detail">Waiting for latest bulletin</small>
+                </div>
+              </div>
+            </article>
+
+            <article class="card triggers-card">
+              <h2><i data-lucide="clock-3"></i>Upcoming Triggers</h2>
+              <div class="timeline">
+                <div class="timeline-item live">
+                  <time>08:00 AM • Today</time>
+                  <strong>Morning Hydration Cycle</strong>
+                  <span><i data-lucide="droplet"></i>Zone A, Zone B</span>
+                  <em>In 45m</em>
+                </div>
+                <div class="timeline-item live">
+                  <time>10:00 AM • Today</time>
+                  <strong>Ventilation Boost</strong>
+                  <span><i data-lucide="wind"></i>Exhaust Fans 1-4</span>
+                  <em>Scheduled</em>
+                </div>
+                <div class="timeline-item">
+                  <time>06:00 PM • Today</time>
+                  <strong>Spectrum Shift (Evening)</strong>
+                  <span><i data-lucide="lightbulb"></i>Main LED Array</span>
+                  <em>Scheduled</em>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <article class="card rules-card">
+            <div class="card-title">
+              <h2>Active Rules</h2>
+              <button class="ghost-icon" type="button" aria-label="Rule settings"><i data-lucide="sliders-horizontal"></i></button>
+            </div>
+            <div class="rule active">
+              <i data-lucide="droplet"></i>
+              <div><strong>Auto-Watering</strong><p>Triggers when Soil Moisture &lt; 35% for Zone A.</p><button type="button">Edit</button></div>
+              <span class="switch"></span>
+            </div>
+            <div class="rule active">
+              <i data-lucide="thermometer"></i>
+              <div><strong>Temp Control</strong><p>Activate exhaust fans if Ambient Temp &gt; 28°C.</p><button type="button">Edit</button></div>
+              <span class="switch"></span>
+            </div>
+            <div class="rule disabled">
+              <i data-lucide="sun"></i>
+              <div><strong>Supplemental Light</strong><p>On at 18:00, Off at 22:00. (Currently disabled)</p><button type="button">Edit</button></div>
+              <span class="switch"></span>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+

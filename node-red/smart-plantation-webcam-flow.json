@@ -1,0 +1,697 @@
+[
+  {
+    "id": "d6a9f1430c2f0c18",
+    "type": "tab",
+    "label": "Smart Plantation + Webcam",
+    "disabled": false,
+    "info": "Import this flow into Node-RED. It reads ESP32 MQTT sensor data and captures USB webcam leaf snapshots from the computer running Node-RED."
+  },
+  {
+    "id": "7c2e9f9d713f203b",
+    "type": "mqtt-broker",
+    "name": "HiveMQ Public Broker",
+    "broker": "broker.hivemq.com",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {},
+    "sessionExpiry": ""
+  },
+  {
+    "id": "8d93538f18256f8e",
+    "type": "ui_tab",
+    "name": "Plant Monitor",
+    "icon": "dashboard",
+    "disabled": false,
+    "hidden": false
+  },
+  {
+    "id": "a424ba52f9158af1",
+    "type": "ui_group",
+    "name": "ESP32 Sensors",
+    "tab": "8d93538f18256f8e",
+    "order": 1,
+    "disp": true,
+    "width": "12",
+    "collapse": false,
+    "className": ""
+  },
+  {
+    "id": "a1c5c8b3c42c4c08",
+    "type": "ui_group",
+    "name": "Leaf Webcam",
+    "tab": "8d93538f18256f8e",
+    "order": 2,
+    "disp": true,
+    "width": "12",
+    "collapse": false,
+    "className": ""
+  },
+  {
+    "id": "ee6dc2ee94f10c1d",
+    "type": "mqtt in",
+    "z": "d6a9f1430c2f0c18",
+    "name": "ESP32 sensor JSON",
+    "topic": "smartplantation/sensors",
+    "qos": "0",
+    "datatype": "auto-detect",
+    "broker": "7c2e9f9d713f203b",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 140,
+    "y": 100,
+    "wires": [
+      [
+        "d7a14e2d4b512dc8"
+      ]
+    ]
+  },
+  {
+    "id": "d7a14e2d4b512dc8",
+    "type": "json",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Parse JSON",
+    "property": "payload",
+    "action": "",
+    "pretty": false,
+    "x": 340,
+    "y": 100,
+    "wires": [
+      [
+        "b4a3d31a7c2f4b0a",
+        "bcff87067bbd0aae",
+        "a4e9fb9c4d541c9d",
+        "ef33a77550b2fe63"
+      ]
+    ]
+  },
+  {
+    "id": "b4a3d31a7c2f4b0a",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Split sensor values",
+    "func": "const p = msg.payload || {};\n\nfunction value(...names) {\n    for (const name of names) {\n        if (p[name] !== undefined && p[name] !== null) return Number(p[name]);\n    }\n    return null;\n}\n\nconst temperature = value('temperature', 'temp');\nconst humidity = value('humidity', 'hum');\nconst soil = value('soil_moisture', 'soilMoisture', 'soil');\nconst water = value('water_level', 'waterLevel', 'water');\n\nreturn [\n    temperature === null ? null : { payload: temperature, topic: 'Temperature' },\n    humidity === null ? null : { payload: humidity, topic: 'Humidity' },\n    soil === null ? null : { payload: soil, topic: 'Soil Moisture' },\n    water === null ? null : { payload: water, topic: 'Water Level' }\n];",
+    "outputs": 4,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 560,
+    "y": 100,
+    "wires": [
+      [
+        "9bc717f25733462d",
+        "cd01ab82b15c3ea6"
+      ],
+      [
+        "eb655d2054971822",
+        "cd01ab82b15c3ea6"
+      ],
+      [
+        "41b518a448f7014d",
+        "cd01ab82b15c3ea6"
+      ],
+      [
+        "725d103823d9f410",
+        "cd01ab82b15c3ea6"
+      ]
+    ]
+  },
+  {
+    "id": "bcff87067bbd0aae",
+    "type": "debug",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Raw sensor payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 580,
+    "y": 200,
+    "wires": []
+  },
+  {
+    "id": "a4e9fb9c4d541c9d",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Format sensor table",
+    "func": "const p = msg.payload || {};\nconst waterLevel = p.water_level ?? p.waterLevel ?? p.water ?? null;\nconst waterStatus = p.water_level_status ?? p.waterLevelStatus ?? (Number(waterLevel) >= 80 ? 'full' : 'not full');\n\nconst rows = [\n    { sensor: 'Temperature', value: p.temperature ?? p.temp ?? null, unit: 'C' },\n    { sensor: 'Humidity', value: p.humidity ?? p.hum ?? null, unit: '%' },\n    { sensor: 'Soil Moisture', value: p.soil_moisture ?? p.soilMoisture ?? p.soil ?? null, unit: '%' },\n    { sensor: 'Soil Digital', value: p.soil_digital ?? p.soilDigital ?? null, unit: '0/1' },\n    { sensor: 'Water Level', value: waterStatus, unit: '' },\n    { sensor: 'Water Level Percent', value: waterLevel, unit: '%' },\n    { sensor: 'Water Distance', value: p.water_distance_cm ?? null, unit: 'cm' },\n    { sensor: 'Soil Raw', value: p.soil_raw ?? null, unit: 'ADC' }\n];\n\nmsg.payload = rows.map(row => ({\n    sensor: row.sensor,\n    value: row.value === null || row.value === undefined ? '-' : row.value,\n    unit: row.unit,\n    updated: new Date().toLocaleString()\n}));\n\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 590,
+    "y": 260,
+    "wires": [
+      [
+        "ace2e8e4e4e54c20"
+      ]
+    ]
+  },
+  {
+    "id": "ace2e8e4e4e54c20",
+    "type": "ui_template",
+    "z": "d6a9f1430c2f0c18",
+    "group": "a424ba52f9158af1",
+    "name": "Sensor table",
+    "order": 6,
+    "width": 12,
+    "height": 4,
+    "format": "<table style=\"width:100%; border-collapse:collapse; font-size:14px;\">\n  <thead>\n    <tr style=\"border-bottom:1px solid #ddd;\">\n      <th style=\"text-align:left; padding:6px;\">Sensor</th>\n      <th style=\"text-align:right; padding:6px;\">Value</th>\n      <th style=\"text-align:left; padding:6px;\">Unit</th>\n      <th style=\"text-align:left; padding:6px;\">Updated</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr ng-repeat=\"row in msg.payload\" style=\"border-bottom:1px solid #eee;\">\n      <td style=\"padding:6px;\">{{row.sensor}}</td>\n      <td style=\"padding:6px; text-align:right; font-weight:600;\">{{row.value}}</td>\n      <td style=\"padding:6px;\">{{row.unit}}</td>\n      <td style=\"padding:6px;\">{{row.updated}}</td>\n    </tr>\n  </tbody>\n</table>",
+    "storeOutMessages": true,
+    "fwdInMessages": true,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 850,
+    "y": 260,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "ef33a77550b2fe63",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Auto prepare Supabase insert",
+    "func": "let p = msg.payload || {};\n\nif (typeof p === 'string') {\n    try {\n        p = JSON.parse(p);\n    } catch (error) {\n        node.warn('Sensor payload is not valid JSON. Supabase upload skipped.');\n        return null;\n    }\n}\n\nfunction numberOrNull(value) {\n    if (value === undefined || value === null || value === '') return null;\n    const number = Number(value);\n    return Number.isFinite(number) ? number : null;\n}\n\nconst waterLevel = numberOrNull(p.water_level ?? p.waterLevel ?? p.water);\nconst waterStatus = p.water_level_status ?? p.waterLevelStatus ?? (waterLevel >= 80 ? 'full' : 'not full');\n\nmsg.headers = {\n    apikey: 'sb_publishable_7Kgk2nj4WLTAuX86ucXDKw_CQ3J18lh',\n    Authorization: 'Bearer sb_publishable_7Kgk2nj4WLTAuX86ucXDKw_CQ3J18lh',\n    'Content-Type': 'application/json',\n    Prefer: 'return=representation'\n};\n\nmsg.payload = {\n    temperature: numberOrNull(p.temperature ?? p.temp),\n    humidity: numberOrNull(p.humidity ?? p.hum),\n    soil_moisture: numberOrNull(p.soil_moisture ?? p.soilMoisture ?? p.soil),\n    soil_digital: numberOrNull(p.soil_digital ?? p.soilDigital),\n    water_level: waterLevel,\n    water_level_status: waterStatus,\n    water_distance_cm: numberOrNull(p.water_distance_cm),\n    soil_raw: numberOrNull(p.soil_raw)\n};\n\nnode.status({ fill: 'blue', shape: 'dot', text: 'uploading to Supabase' });\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 320,
+    "wires": [
+      [
+        "aa17c00a31163e95"
+      ]
+    ]
+  },
+  {
+    "id": "aa17c00a31163e95",
+    "type": "http request",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Auto insert into Supabase",
+    "method": "POST",
+    "ret": "obj",
+    "paytoqs": "ignore",
+    "url": "https://ntvknrblgmjauaznenpk.supabase.co/rest/v1/plant_sensor_readings",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "insecureHTTPParser": false,
+    "authType": "",
+    "senderr": false,
+    "headers": [],
+    "x": 870,
+    "y": 320,
+    "wires": [
+      [
+        "c72bb5c28aeaf01d",
+        "f34dbf8831e0ae23"
+      ]
+    ]
+  },
+  {
+    "id": "c72bb5c28aeaf01d",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Check Supabase upload",
+    "func": "if (msg.statusCode >= 200 && msg.statusCode < 300) {\n    node.status({ fill: 'green', shape: 'dot', text: `inserted ${new Date().toLocaleTimeString()}` });\n} else {\n    node.status({ fill: 'red', shape: 'ring', text: `failed ${msg.statusCode}` });\n}\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1140,
+    "y": 280,
+    "wires": [
+      [
+        "d7b23d012239d937"
+      ]
+    ]
+  },
+  {
+    "id": "d7b23d012239d937",
+    "type": "debug",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Supabase HTTP status",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "statusCode",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1390,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "f34dbf8831e0ae23",
+    "type": "debug",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Supabase insert result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1130,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "9bc717f25733462d",
+    "type": "ui_gauge",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Temperature",
+    "group": "a424ba52f9158af1",
+    "order": 1,
+    "width": 3,
+    "height": 3,
+    "gtype": "gage",
+    "title": "Temperature",
+    "label": "C",
+    "format": "{{value}}",
+    "min": 0,
+    "max": "50",
+    "colors": [
+      "#00b500",
+      "#e6e600",
+      "#ca3838"
+    ],
+    "seg1": "",
+    "seg2": "",
+    "diff": false,
+    "className": "",
+    "x": 840,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "eb655d2054971822",
+    "type": "ui_gauge",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Humidity",
+    "group": "a424ba52f9158af1",
+    "order": 2,
+    "width": 3,
+    "height": 3,
+    "gtype": "gage",
+    "title": "Humidity",
+    "label": "%",
+    "format": "{{value}}",
+    "min": 0,
+    "max": "100",
+    "colors": [
+      "#ca3838",
+      "#e6e600",
+      "#00b500"
+    ],
+    "seg1": "",
+    "seg2": "",
+    "diff": false,
+    "className": "",
+    "x": 830,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "41b518a448f7014d",
+    "type": "ui_gauge",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Soil Moisture",
+    "group": "a424ba52f9158af1",
+    "order": 3,
+    "width": 3,
+    "height": 3,
+    "gtype": "gage",
+    "title": "Soil",
+    "label": "%",
+    "format": "{{value}}",
+    "min": 0,
+    "max": "100",
+    "colors": [
+      "#ca3838",
+      "#e6e600",
+      "#00b500"
+    ],
+    "seg1": "",
+    "seg2": "",
+    "diff": false,
+    "className": "",
+    "x": 850,
+    "y": 120,
+    "wires": []
+  },
+  {
+    "id": "725d103823d9f410",
+    "type": "ui_gauge",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Water Level",
+    "group": "a424ba52f9158af1",
+    "order": 4,
+    "width": 3,
+    "height": 3,
+    "gtype": "gage",
+    "title": "Water",
+    "label": "%",
+    "format": "{{value}}",
+    "min": 0,
+    "max": "100",
+    "colors": [
+      "#ca3838",
+      "#e6e600",
+      "#00b500"
+    ],
+    "seg1": "",
+    "seg2": "",
+    "diff": false,
+    "className": "",
+    "x": 820,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "cd01ab82b15c3ea6",
+    "type": "ui_chart",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Sensor history",
+    "group": "a424ba52f9158af1",
+    "order": 5,
+    "width": 12,
+    "height": 5,
+    "label": "Sensor History",
+    "chartType": "line",
+    "legend": "true",
+    "xformat": "HH:mm:ss",
+    "interpolate": "linear",
+    "nodata": "",
+    "dot": false,
+    "ymin": "",
+    "ymax": "",
+    "removeOlder": "24",
+    "removeOlderPoints": "",
+    "removeOlderUnit": "3600",
+    "cutout": 0,
+    "useOneColor": false,
+    "useUTC": false,
+    "colors": [
+      "#1f77b4",
+      "#aec7e8",
+      "#ff7f0e",
+      "#2ca02c",
+      "#98df8a",
+      "#d62728",
+      "#ff9896",
+      "#9467bd",
+      "#c5b0d5"
+    ],
+    "outputs": 1,
+    "useDifferentColor": false,
+    "className": "",
+    "x": 850,
+    "y": 220,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "94fb477d773a6a39",
+    "type": "ui_button",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Capture now",
+    "group": "a1c5c8b3c42c4c08",
+    "order": 1,
+    "width": 3,
+    "height": 1,
+    "passthru": false,
+    "label": "Capture Leaf Photo",
+    "tooltip": "",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "icon": "photo_camera",
+    "payload": "",
+    "payloadType": "str",
+    "topic": "manual_capture",
+    "topicType": "str",
+    "x": 150,
+    "y": 360,
+    "wires": [
+      [
+        "cd9dfe00be0ef3e0"
+      ]
+    ]
+  },
+  {
+    "id": "f175bf7ccf8a6fd1",
+    "type": "inject",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Capture every 1 hour",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "3600",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "scheduled_capture",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 420,
+    "wires": [
+      [
+        "cd9dfe00be0ef3e0"
+      ]
+    ]
+  },
+  {
+    "id": "cd9dfe00be0ef3e0",
+    "type": "exec",
+    "z": "d6a9f1430c2f0c18",
+    "command": "python \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart Plantation System\\webcam\\capture_leaf.py\" --camera 0 --output-dir \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart Plantation System\\webcam\\plant_images\"",
+    "addpay": false,
+    "append": "",
+    "useSpawn": "false",
+    "timer": "",
+    "winHide": true,
+    "oldrc": false,
+    "name": "Capture webcam image",
+    "x": 430,
+    "y": 390,
+    "wires": [
+      [
+        "e49c78169b099bf3"
+      ],
+      [
+        "f43bc4f11f9ac5d1"
+      ],
+      [
+        "adf5b9a6482a8138"
+      ]
+    ]
+  },
+  {
+    "id": "e49c78169b099bf3",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Set image filename",
+    "func": "msg.filename = String(msg.payload || '').trim();\nreturn msg.filename ? msg : null;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 670,
+    "y": 360,
+    "wires": [
+      [
+        "fcbff1748458ac94",
+        "c20f50c13f25f2da"
+      ]
+    ]
+  },
+  {
+    "id": "fcbff1748458ac94",
+    "type": "file in",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Read latest image",
+    "filename": "",
+    "filenameType": "msg",
+    "format": "",
+    "chunk": false,
+    "sendError": false,
+    "encoding": "none",
+    "allProps": false,
+    "x": 890,
+    "y": 360,
+    "wires": [
+      [
+        "e052ae40e6f2323f"
+      ]
+    ]
+  },
+  {
+    "id": "e052ae40e6f2323f",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Convert to dashboard image",
+    "func": "const base64 = Buffer.from(msg.payload).toString('base64');\nmsg.payload = `data:image/jpeg;base64,${base64}`;\nmsg.timestamp = new Date().toLocaleString();\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1140,
+    "y": 360,
+    "wires": [
+      [
+        "e055fae3f0b58086"
+      ]
+    ]
+  },
+  {
+    "id": "e055fae3f0b58086",
+    "type": "ui_template",
+    "z": "d6a9f1430c2f0c18",
+    "group": "a1c5c8b3c42c4c08",
+    "name": "Latest leaf image",
+    "order": 2,
+    "width": 12,
+    "height": 8,
+    "format": "<div style=\"width:100%; text-align:center;\">\n  <img ng-if=\"msg.payload\" ng-src=\"{{msg.payload}}\" style=\"max-width:100%; max-height:520px; object-fit:contain; border:1px solid #ddd;\">\n  <div style=\"font-size:12px; color:#666; margin-top:6px;\">Last capture: {{msg.timestamp}}</div>\n</div>",
+    "storeOutMessages": true,
+    "fwdInMessages": true,
+    "resendOnRefresh": true,
+    "templateScope": "local",
+    "className": "",
+    "x": 1390,
+    "y": 360,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "c20f50c13f25f2da",
+    "type": "ui_text",
+    "z": "d6a9f1430c2f0c18",
+    "group": "a1c5c8b3c42c4c08",
+    "order": 3,
+    "width": 12,
+    "height": 1,
+    "name": "Saved image path",
+    "label": "Saved image",
+    "format": "{{msg.filename}}",
+    "layout": "row-spread",
+    "className": "",
+    "x": 900,
+    "y": 430,
+    "wires": []
+  },
+  {
+    "id": "f43bc4f11f9ac5d1",
+    "type": "debug",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Webcam errors",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 660,
+    "y": 440,
+    "wires": []
+  },
+  {
+    "id": "adf5b9a6482a8138",
+    "type": "debug",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Capture return code",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 680,
+    "y": 500,
+    "wires": []
+  },
+  {
+    "id": "b78bbdb3f06aa02f",
+    "type": "inject",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Test Supabase Insert",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "test_supabase_insert",
+    "payload": "{\"temperature\":28.5,\"humidity\":70.2,\"soil_moisture\":63,\"soil_digital\":1,\"water_level\":48,\"water_level_status\":\"not full\",\"water_distance_cm\":7.4,\"soil_raw\":1800}",
+    "payloadType": "json",
+    "x": 160,
+    "y": 560,
+    "wires": [
+      [
+        "a4e9fb9c4d541c9d",
+        "ef33a77550b2fe63"
+      ]
+    ]
+  }
+]
