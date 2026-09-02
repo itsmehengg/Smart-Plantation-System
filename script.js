@@ -159,6 +159,84 @@ document.querySelectorAll(".days button").forEach((day) => {
   });
 });
 
+
+let leafWebcamStream = null;
+
+function setWebcamStatus(message) {
+  setText("webcam-status", message);
+}
+
+async function startLeafWebcam() {
+  const video = document.getElementById("leaf-webcam-video");
+  if (!video || !navigator.mediaDevices?.getUserMedia) {
+    setWebcamStatus("Camera is not available in this browser");
+    return;
+  }
+
+  try {
+    leafWebcamStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
+    });
+    video.srcObject = leafWebcamStream;
+    setWebcamStatus("Camera live. Aim at the plant leaf and capture.");
+  } catch (error) {
+    console.error(error);
+    setWebcamStatus("Camera blocked. Allow camera permission or use HTTPS/localhost.");
+  }
+}
+
+function captureLeafPhoto() {
+  const video = document.getElementById("leaf-webcam-video");
+  const canvas = document.getElementById("leaf-webcam-canvas");
+  const image = document.getElementById("leaf-captured-image");
+  const placeholder = document.getElementById("leaf-captured-placeholder");
+
+  if (!video || !canvas || !image || !video.videoWidth) {
+    setWebcamStatus("Start the camera before capturing.");
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext("2d");
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  image.src = canvas.toDataURL("image/jpeg", 0.92);
+  image.classList.add("has-image");
+  if (placeholder) placeholder.hidden = true;
+  setWebcamStatus(`Captured leaf image at ${new Date().toLocaleTimeString()}`);
+}
+
+function clearLeafPhoto() {
+  const image = document.getElementById("leaf-captured-image");
+  const placeholder = document.getElementById("leaf-captured-placeholder");
+  if (image) {
+    image.removeAttribute("src");
+    image.classList.remove("has-image");
+  }
+  if (placeholder) placeholder.hidden = false;
+  setWebcamStatus("Captured image cleared");
+}
+
+function initLeafWebcam() {
+  const startButton = document.getElementById("start-webcam");
+  const captureButton = document.getElementById("capture-leaf-photo");
+  const clearButton = document.getElementById("clear-leaf-photo");
+if (!startButton || !captureButton || !clearButton) return;
+
+startButton.addEventListener("click", startLeafWebcam);
+  captureButton.addEventListener("click", captureLeafPhoto);
+  clearButton.addEventListener("click", clearLeafPhoto);
+if (!window.isSecureContext) {
+    setWebcamStatus("Use HTTPS or localhost to enable camera access.");
+  }
+}
+
 const WEATHER_CONFIG = {
   location: "Kuala Lumpur",
   forecastUrl: "https://api.data.gov.my/weather/forecast",
