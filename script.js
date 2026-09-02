@@ -190,22 +190,15 @@ async function startLeafWebcam() {
   }
 }
 
-function getRoboflowConfig() {
-  const savedModel = localStorage.getItem("roboflowModelId") || "leaf-detection-xdr6h/1";
-  const savedVersion = localStorage.getItem("roboflowVersion") || "1";
+const LEAF_HEALTH_API_URL = "http://127.0.0.1:8000/leaf-health";
 
-  return {
-    modelId: savedModel.includes("/") ? savedModel : `${savedModel}/${savedVersion}`,
-    version: savedVersion,
-    apiKey: localStorage.getItem("roboflowApiKey") || "",
-  };
-}
-
-function setRoboflowResult(label, situation, confidence, count) {
-  setText("leaf-detection-label", label);
-  setText("leaf-health-status", situation);
-  setText("leaf-confidence", confidence);
-  setText("leaf-object-count", count);
+function setLeafHealthResult(result) {
+  setText("leaf-health-status", result.condition || "--");
+  setText("leaf-health-score", result.health_score === undefined ? "--%" : `${result.health_score}%`);
+  setText("leaf-green-percentage", result.green_percentage === undefined ? "--%" : `${result.green_percentage}%`);
+  setText("leaf-yellow-percentage", result.yellow_percentage === undefined ? "--%" : `${result.yellow_percentage}%`);
+  setText("leaf-brown-percentage", result.brown_percentage === undefined ? "--%" : `${result.brown_percentage}%`);
+  setText("leaf-health-advice", result.advice || result.warning || "No advice returned");
 }
 
 function canvasToJpegBlob(canvas) {
@@ -214,61 +207,27 @@ function canvasToJpegBlob(canvas) {
   });
 }
 
-async function runRoboflowDetection(blob) {
-  const config = getRoboflowConfig();
-  if (!config.modelId || !config.apiKey) {
-    throw new Error("Missing Roboflow model ID or API key.");
-  }
+async function runLeafHealthApi(blob) {
+  const formData = new FormData();
+  formData.append("file", blob, "leaf-capture.jpg");
 
-  const endpoint = `https://serverless.roboflow.com/${config.modelId}`;
-  const response = await fetch(endpoint, {
+  const response = await fetch(LEAF_HEALTH_API_URL, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${config.apiKey}`,
-      "Content-Type": "image/jpeg",
-    },
-    body: blob,
+    body: formData,
   });
 
   if (!response.ok) {
-    throw new Error(`Roboflow detection failed: ${response.status}`);
+    let message = `Leaf health API failed: ${response.status}`;
+    try {
+      const error = await response.json();
+      message = error.detail || message;
+    } catch {
+      // Keep the HTTP status message when the API does not return JSON.
+    }
+    throw new Error(message);
   }
 
   return response.json();
-}
-
-function interpretLeafDetection(result) {
-  const predictions = Array.isArray(result?.predictions) ? result.predictions : [];
-  const best = predictions
-    .slice()
-    .sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0))[0];
-
-  if (!best) {
-    return {
-      label: "No leaf detected",
-      situation: "Move the camera closer to the leaf and capture again.",
-      confidence: "--%",
-      count: "0",
-    };
-  }
-
-  const label = String(best.class || best.class_name || "unknown");
-  const normalized = label.toLowerCase();
-  const confidence = Math.round(Number(best.confidence || 0) * 100);
-
-  let situation = "Leaf detected. Check model label.";
-  if (normalized.includes("green") || normalized.includes("healthy")) {
-    situation = "Healthy leaf";
-  } else if (normalized.includes("brown") || normalized.includes("potassium") || normalized.includes("yellow") || normalized.includes("dry")) {
-    situation = "Brown leaf detected: possible potassium loss";
-  }
-
-  return {
-    label,
-    situation,
-    confidence: `${confidence}%`,
-    count: String(predictions.length),
-  };
 }
 
 async function captureLeafPhoto() {
@@ -291,18 +250,23 @@ async function captureLeafPhoto() {
   image.classList.add("has-image");
   if (placeholder) placeholder.hidden = true;
 
-  setWebcamStatus("Captured image. Sending to Roboflow YOLO...");
-  setRoboflowResult("Detecting", "Waiting for YOLO result", "--%", "--");
+  setWebcamStatus("Captured image. Sending to local leaf colour API...");
+  setLeafHealthResult({
+    condition: "Analysing",
+    advice: "OpenCV is checking green, yellow, and brown leaf colour.",
+  });
 
   try {
     const blob = await canvasToJpegBlob(canvas);
-    const result = await runRoboflowDetection(blob);
-    const analysis = interpretLeafDetection(result);
-    setRoboflowResult(analysis.label, analysis.situation, analysis.confidence, analysis.count);
-    setWebcamStatus(`Roboflow detection complete at ${new Date().toLocaleTimeString()}`);
+    const result = await runLeafHealthApi(blob);
+    setLeafHealthResult(result);
+    setWebcamStatus(`Leaf colour analysis complete at ${new Date().toLocaleTimeString()}`);
   } catch (error) {
     console.error(error);
-    setRoboflowResult("Detection failed", "Check Roboflow model settings and API key", "--%", "--");
+    setLeafHealthResult({
+      condition: "Analysis failed",
+      advice: "Start the FastAPI server and photograph the leaf on a plain light background.",
+    });
     setWebcamStatus(error.message);
   }
 }
@@ -322,32 +286,12 @@ function initLeafWebcam() {
   const startButton = document.getElementById("start-webcam");
   const captureButton = document.getElementById("capture-leaf-photo");
   const clearButton = document.getElementById("clear-leaf-photo");
-  const saveModelButton = document.getElementById("save-roboflow-config");
+if (!startButton || !captureButton || !clearButton) return;
 
-  if (!startButton || !captureButton || !clearButton) return;
-
-  const config = getRoboflowConfig();
-  const modelInput = document.getElementById("roboflow-model-id");
-  const versionInput = document.getElementById("roboflow-version");
-  const keyInput = document.getElementById("roboflow-api-key");
-  if (modelInput) modelInput.value = config.modelId;
-  if (versionInput) versionInput.value = config.version;
-  if (keyInput) keyInput.value = config.apiKey;
-
-  startButton.addEventListener("click", startLeafWebcam);
+startButton.addEventListener("click", startLeafWebcam);
   captureButton.addEventListener("click", captureLeafPhoto);
   clearButton.addEventListener("click", clearLeafPhoto);
-  if (saveModelButton) {
-    saveModelButton.addEventListener("click", () => {
-      const modelValue = modelInput?.value.trim() || "leaf-detection-xdr6h/1";
-      localStorage.setItem("roboflowModelId", modelValue);
-      localStorage.setItem("roboflowVersion", versionInput?.value.trim() || "1");
-      localStorage.setItem("roboflowApiKey", keyInput?.value.trim() || "");
-      setWebcamStatus("Roboflow model settings saved in this browser.");
-    });
-  }
-
-  if (!window.isSecureContext) {
+if (!window.isSecureContext) {
     setWebcamStatus("Use HTTPS or localhost to enable camera access.");
   }
 }

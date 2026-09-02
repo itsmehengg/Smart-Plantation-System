@@ -1593,7 +1593,6 @@ td svg,
 }
 
 
-.roboflow-config,
 .leaf-analysis-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1601,7 +1600,6 @@ td svg,
   margin-top: 16px;
 }
 
-.roboflow-config label,
 .leaf-analysis-item {
   min-height: 76px;
   border: 1px solid #edf2ef;
@@ -1611,25 +1609,12 @@ td svg,
   font-family: var(--mono);
 }
 
-.roboflow-config label,
 .leaf-analysis-item span {
   display: block;
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-}
-
-.roboflow-config input {
-  display: block;
-  width: 100%;
-  min-height: 34px;
-  margin-top: 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0 10px;
-  color: var(--ink);
-  font: 700 12px var(--mono);
 }
 
 .leaf-analysis-item strong {
@@ -1640,15 +1625,54 @@ td svg,
 }
 
 @media (max-width: 1100px) {
-  .roboflow-config,
   .leaf-analysis-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 620px) {
-  .roboflow-config,
   .leaf-analysis-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+
+.leaf-api-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+  border: 1px solid #edf2ef;
+  border-radius: 8px;
+  background: #f8fcfb;
+  padding: 14px;
+  font-family: var(--mono);
+}
+
+.leaf-api-status span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.leaf-api-status strong {
+  color: var(--green);
+  font-size: 13px;
+}
+
+.leaf-analysis-wide {
+  grid-column: span 3;
+}
+
+@media (max-width: 900px) {
+  .leaf-api-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .leaf-analysis-wide {
+    grid-column: auto;
   }
 }

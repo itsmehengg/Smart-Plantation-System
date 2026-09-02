@@ -127,28 +127,34 @@
                 <span id="leaf-captured-placeholder">No captured image yet</span>
               </div>
             </div>
-            <div class="roboflow-config">
-              <label>Model ID<input id="roboflow-model-id" type="text" placeholder="leaf-detection-xdr6h/1" /></label>
-              <label>Version<input id="roboflow-version" type="number" min="1" placeholder="1" /></label>
-              <label>API Key<input id="roboflow-api-key" type="password" placeholder="Paste Roboflow API key" autocomplete="off" /></label>
-              <button class="outline-btn" type="button" id="save-roboflow-config"><i data-lucide="save"></i>Save Model</button>
+            <div class="leaf-api-status">
+              <span>Local API</span>
+              <strong id="leaf-api-url">http://127.0.0.1:8000/leaf-health</strong>
             </div>
             <div class="leaf-analysis-grid">
-              <div class="leaf-analysis-item">
-                <span>Detection</span>
-                <strong id="leaf-detection-label">Waiting</strong>
-              </div>
               <div class="leaf-analysis-item">
                 <span>Leaf Situation</span>
                 <strong id="leaf-health-status">Capture leaf first</strong>
               </div>
               <div class="leaf-analysis-item">
-                <span>Confidence</span>
-                <strong id="leaf-confidence">--%</strong>
+                <span>Health Score</span>
+                <strong id="leaf-health-score">--%</strong>
               </div>
               <div class="leaf-analysis-item">
-                <span>YOLO Objects</span>
-                <strong id="leaf-object-count">--</strong>
+                <span>Green</span>
+                <strong id="leaf-green-percentage">--%</strong>
+              </div>
+              <div class="leaf-analysis-item">
+                <span>Yellow</span>
+                <strong id="leaf-yellow-percentage">--%</strong>
+              </div>
+              <div class="leaf-analysis-item">
+                <span>Brown</span>
+                <strong id="leaf-brown-percentage">--%</strong>
+              </div>
+              <div class="leaf-analysis-item leaf-analysis-wide">
+                <span>Advice</span>
+                <strong id="leaf-health-advice">Waiting for analysis</strong>
               </div>
             </div>
           </article>
