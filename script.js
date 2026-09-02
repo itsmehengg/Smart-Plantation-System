@@ -761,6 +761,7 @@ async function loadWeatherData() {
 }
 
 initRelayMqttControls();
+initLeafWebcam();
 initAnalyticsControls();
 loadWeatherData();
 loadSupabaseSensorData();
