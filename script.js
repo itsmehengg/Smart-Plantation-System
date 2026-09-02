@@ -223,11 +223,45 @@ function clearLeafPhoto() {
   setWebcamStatus("Captured image cleared");
 }
 
+
+function updateNodeRedAccessUrl() {
+  const input = document.getElementById("node-red-ip-input");
+  const display = document.getElementById("node-red-access-url");
+  if (!input || !display) return "";
+
+  const ip = input.value.trim();
+  const url = ip ? `http://${ip}:1880/ui` : "http://YOUR_COMPUTER_IP:1880/ui";
+  display.textContent = url;
+  if (ip) localStorage.setItem("smartplant_node_red_ip", ip);
+  return ip ? url : "";
+}
+
+function initNodeRedAccessHelper() {
+  const input = document.getElementById("node-red-ip-input");
+  const openButton = document.getElementById("open-node-red-dashboard");
+  if (!input || !openButton) return;
+
+  input.value = localStorage.getItem("smartplant_node_red_ip") || "";
+  updateNodeRedAccessUrl();
+  input.addEventListener("input", updateNodeRedAccessUrl);
+  openButton.addEventListener("click", () => {
+    const url = updateNodeRedAccessUrl();
+    if (!url) {
+      setWebcamStatus("Enter this computer's IPv4 address first.");
+      input.focus();
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  });
+}
+
 function initLeafWebcam() {
   const startButton = document.getElementById("start-webcam");
   const captureButton = document.getElementById("capture-leaf-photo");
   const clearButton = document.getElementById("clear-leaf-photo");
 if (!startButton || !captureButton || !clearButton) return;
+
+initNodeRedAccessHelper();
 
 startButton.addEventListener("click", startLeafWebcam);
   captureButton.addEventListener("click", captureLeafPhoto);

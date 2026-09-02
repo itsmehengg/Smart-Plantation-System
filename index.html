@@ -12,7 +12,7 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Main sidebar">
-      <a class="brand" href="dashboard.html" aria-label="SmartPlant home">
+      <a class="brand" href="index.html" aria-label="SmartPlant home">
         <span class="brand-mark"><i data-lucide="sprout"></i></span>
         <span>
           <strong>SmartPlant</strong>
@@ -21,7 +21,7 @@
       </a>
 
       <nav class="side-nav" aria-label="Section navigation">
-        <a class="side-link active" href="dashboard.html"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+        <a class="side-link active" href="index.html"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
         <a class="side-link " href="analytics.html"><i data-lucide="chart-no-axes-combined"></i><span>Analytics</span></a>
         <a class="side-link " href="schedule.html"><i data-lucide="calendar-days"></i><span>Schedule</span></a>
       </nav>
@@ -46,7 +46,7 @@
     <main class="main">
       <header class="topbar">
         <nav class="top-nav" aria-label="View navigation">
-          <a class="top-link active" href="dashboard.html">Live View</a>
+          <a class="top-link active" href="index.html">Live View</a>
           <a class="top-link " href="analytics.html">History</a>
           <a class="top-link " href="schedule.html">Reports</a>
         </nav>
@@ -94,11 +94,56 @@
               </div>
               <div class="gauge-block">
                 <div class="ring" style="--value:0;--ring:#36d2c1" data-ring="water_level"><span id="live-water-level">--%</span></div>
-                <p>Water Tank Level</p>
+                <p>Water Level</p>
               </div>
               <div class="gauge-block">
                 <div class="ring" style="--value:0;--ring:#7bc9b3" data-ring="temperature"><span id="live-temperature">--°</span></div>
                 <p>Ambient Temp</p>
+              </div>
+            </div>
+          </article>
+
+
+
+          <article class="card leaf-webcam-card">
+            <div class="card-title">
+              <div>
+                <h2>Leaf Webcam</h2>
+                <p id="webcam-status">Camera not started</p>
+              </div>
+              <div class="webcam-actions">
+                <button class="outline-btn" type="button" id="start-webcam"><i data-lucide="video"></i>Start Camera</button>
+                <button class="primary-btn" type="button" id="capture-leaf-photo"><i data-lucide="camera"></i>Capture</button>
+                <button class="outline-btn" type="button" id="clear-leaf-photo"><i data-lucide="x"></i>Clear</button>
+              </div>
+            </div>
+            <div class="webcam-grid">
+              <div class="webcam-panel">
+                <video id="leaf-webcam-video" autoplay playsinline muted></video>
+              </div>
+              <div class="webcam-panel captured">
+                <canvas id="leaf-webcam-canvas" hidden></canvas>
+                <img id="leaf-captured-image" alt="Captured plant leaf" />
+                <span id="leaf-captured-placeholder">No captured image yet</span>
+              </div>
+            </div>
+            <div class="webcam-access-card">
+              <div>
+                <h3>Same WiFi Access</h3>
+                <p>Other users can open your Node-RED dashboard when their device is on the same WiFi as this computer.</p>
+              </div>
+              <div class="webcam-access-form">
+                <label for="node-red-ip-input">Computer IPv4 address</label>
+                <div>
+                  <input id="node-red-ip-input" type="text" inputmode="decimal" placeholder="192.168.1.25" />
+                  <button class="outline-btn" type="button" id="open-node-red-dashboard"><i data-lucide="external-link"></i>Open</button>
+                </div>
+                <code id="node-red-access-url">http://YOUR_COMPUTER_IP:1880/ui</code>
+              </div>
+              <div class="webcam-topic-list">
+                <span>MQTT command: <code>smartplantation/camera/command</code></span>
+                <span>MQTT status: <code>smartplantation/camera/status</code></span>
+                <span>MQTT image: <code>smartplantation/camera/latest</code></span>
               </div>
             </div>
           </article>

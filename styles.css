@@ -1591,3 +1591,77 @@ td svg,
     justify-content: flex-start;
   }
 }
+
+.webcam-access-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  gap: 18px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #edf2ef;
+  border-radius: 8px;
+  background: #fbfefd;
+}
+
+.webcam-access-card h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.webcam-access-card p,
+.webcam-topic-list span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.webcam-access-form {
+  display: grid;
+  gap: 8px;
+}
+
+.webcam-access-form label {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.webcam-access-form > div {
+  display: flex;
+  gap: 8px;
+}
+
+.webcam-access-form input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid #cfe1db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--ink);
+  font: 700 13px var(--mono);
+}
+
+.webcam-access-form code,
+.webcam-topic-list code {
+  color: var(--green);
+  overflow-wrap: anywhere;
+}
+
+.webcam-topic-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .webcam-access-card {
+    grid-template-columns: 1fr;
+  }
+
+  .webcam-access-form > div {
+    flex-direction: column;
+  }
+}
