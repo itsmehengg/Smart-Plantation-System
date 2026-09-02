@@ -16,6 +16,9 @@ const MQTT_RELAY_CONFIG = {
     pump: "smartplantation/control/fan",
     fan: "smartplantation/control/pump",
     status: "smartplantation/status/relay",
+    cameraCommand: "smartplantation/camera/command",
+    cameraStatus: "smartplantation/camera/status",
+    cameraLatest: "smartplantation/camera/latest",
   },
 };
 
@@ -125,6 +128,8 @@ function initRelayMqttControls() {
   relayClient.on("connect", () => {
     setRelayConnectionStatus("MQTT connected", true);
     relayClient.subscribe(MQTT_RELAY_CONFIG.topics.status);
+    relayClient.subscribe(MQTT_RELAY_CONFIG.topics.cameraStatus);
+    relayClient.subscribe(MQTT_RELAY_CONFIG.topics.cameraLatest);
   });
 
   relayClient.on("reconnect", () => setRelayConnectionStatus("MQTT reconnecting", false));
@@ -135,8 +140,15 @@ function initRelayMqttControls() {
   });
 
   relayClient.on("message", (topic, payload) => {
+    const text = payload.toString();
     if (topic === MQTT_RELAY_CONFIG.topics.status) {
-      handleRelayStatus(payload.toString());
+      handleRelayStatus(text);
+    }
+    if (topic === MQTT_RELAY_CONFIG.topics.cameraStatus) {
+      handleCameraStatus(text);
+    }
+    if (topic === MQTT_RELAY_CONFIG.topics.cameraLatest) {
+      handleCameraLatest(text);
     }
   });
 }
@@ -166,51 +178,67 @@ function setWebcamStatus(message) {
   setText("webcam-status", message);
 }
 
-async function startLeafWebcam() {
-  const video = document.getElementById("leaf-webcam-video");
-  if (!video || !navigator.mediaDevices?.getUserMedia) {
-    setWebcamStatus("Camera is not available in this browser");
+function publishCameraCommand(command) {
+  if (!relayClient || !relayClient.connected) {
+    setWebcamStatus("MQTT offline. Start Node-RED and check internet connection.");
     return;
   }
 
-  try {
-    leafWebcamStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-      audio: false,
-    });
-    video.srcObject = leafWebcamStream;
-    setWebcamStatus("Camera live. Aim at the plant leaf and capture.");
-  } catch (error) {
-    console.error(error);
-    setWebcamStatus("Camera blocked. Allow camera permission or use HTTPS/localhost.");
+  relayClient.publish(MQTT_RELAY_CONFIG.topics.cameraCommand, command, { qos: 0, retain: false }, (error) => {
+    if (error) {
+      console.error(error);
+      setWebcamStatus("Camera command failed");
+      return;
+    }
+    setWebcamStatus(`${command} sent to Node-RED laptop camera`);
+  });
+}
+
+function handleCameraStatus(payload) {
+  let status = payload;
+  if (typeof status === "string") {
+    try {
+      status = JSON.parse(status);
+    } catch (error) {
+      setWebcamStatus(status);
+      return;
+    }
   }
+
+  setWebcamStatus(status.message || (status.previewing ? "Laptop camera is previewing" : "Waiting for laptop camera"));
+}
+
+function handleCameraLatest(payload) {
+  let latest = payload;
+  if (typeof latest === "string") {
+    try {
+      latest = JSON.parse(latest);
+    } catch (error) {
+      latest = { image: latest };
+    }
+  }
+
+  const image = document.getElementById("leaf-captured-image");
+  const placeholder = document.getElementById("leaf-captured-placeholder");
+  const imageSrc = latest.image || latest.latest_image || latest.payload;
+  if (!image || !imageSrc) return;
+
+  image.src = imageSrc;
+  image.classList.add("has-image");
+  if (placeholder) placeholder.hidden = true;
+
+  const capturedAt = latest.captured_at ? new Date(latest.captured_at).toLocaleTimeString() : new Date().toLocaleTimeString();
+  setWebcamStatus(`Laptop camera is previewing. Latest update: ${capturedAt}`);
+}
+
+function startLeafWebcam() {
+  publishCameraCommand("START");
 }
 
 function captureLeafPhoto() {
-  const video = document.getElementById("leaf-webcam-video");
-  const canvas = document.getElementById("leaf-webcam-canvas");
-  const image = document.getElementById("leaf-captured-image");
-  const placeholder = document.getElementById("leaf-captured-placeholder");
-
-  if (!video || !canvas || !image || !video.videoWidth) {
-    setWebcamStatus("Start the camera before capturing.");
-    return;
-  }
-
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const context = canvas.getContext("2d");
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  image.src = canvas.toDataURL("image/jpeg", 0.92);
-  image.classList.add("has-image");
-  if (placeholder) placeholder.hidden = true;
-  setWebcamStatus(`Captured leaf image at ${new Date().toLocaleTimeString()}`);
+  publishCameraCommand("CAPTURE");
 }
+
 
 function clearLeafPhoto() {
   const image = document.getElementById("leaf-captured-image");
@@ -266,9 +294,7 @@ initNodeRedAccessHelper();
 startButton.addEventListener("click", startLeafWebcam);
   captureButton.addEventListener("click", captureLeafPhoto);
   clearButton.addEventListener("click", clearLeafPhoto);
-if (!window.isSecureContext) {
-    setWebcamStatus("Use HTTPS or localhost to enable camera access.");
-  }
+setWebcamStatus("Use START or CAPTURE to request the laptop USB camera through Node-RED.");
 }
 
 const WEATHER_CONFIG = {

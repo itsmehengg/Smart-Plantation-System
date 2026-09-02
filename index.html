@@ -109,17 +109,17 @@
             <div class="card-title">
               <div>
                 <h2>Leaf Webcam</h2>
-                <p id="webcam-status">Camera not started</p>
+                <p id="webcam-status">Waiting for Node-RED camera</p>
               </div>
               <div class="webcam-actions">
-                <button class="outline-btn" type="button" id="start-webcam"><i data-lucide="video"></i>Start Camera</button>
+                <button class="outline-btn" type="button" id="start-webcam"><i data-lucide="video"></i>Start Laptop Camera</button>
                 <button class="primary-btn" type="button" id="capture-leaf-photo"><i data-lucide="camera"></i>Capture</button>
                 <button class="outline-btn" type="button" id="clear-leaf-photo"><i data-lucide="x"></i>Clear</button>
               </div>
             </div>
             <div class="webcam-grid">
               <div class="webcam-panel">
-                <video id="leaf-webcam-video" autoplay playsinline muted></video>
+                <div class="remote-camera-panel"><i data-lucide="monitor-up"></i><strong>Laptop USB Camera</strong><span>Preview arrives from Node-RED MQTT</span></div>
               </div>
               <div class="webcam-panel captured">
                 <canvas id="leaf-webcam-canvas" hidden></canvas>
