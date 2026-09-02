@@ -4,7 +4,7 @@
     "type": "tab",
     "label": "Smart Plantation + Webcam",
     "disabled": false,
-    "info": "Import this flow into Node-RED. It reads ESP32 MQTT sensor data and captures USB webcam leaf snapshots from the computer running Node-RED."
+    "info": "Import this flow into Node-RED. It reads ESP32 MQTT sensor data, captures USB webcam leaf snapshots from the computer running Node-RED, and publishes camera preview status/latest image over MQTT for remote dashboards."
   },
   {
     "id": "7c2e9f9d713f203b",
@@ -464,7 +464,7 @@
     "bgcolor": "",
     "className": "",
     "icon": "photo_camera",
-    "payload": "",
+    "payload": "CAPTURE",
     "payloadType": "str",
     "topic": "manual_capture",
     "topicType": "str",
@@ -472,7 +472,7 @@
     "y": 360,
     "wires": [
       [
-        "cd9dfe00be0ef3e0"
+        "camera_command_router"
       ]
     ]
   },
@@ -509,7 +509,7 @@
     "id": "cd9dfe00be0ef3e0",
     "type": "exec",
     "z": "d6a9f1430c2f0c18",
-    "command": "python \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart Plantation System\\webcam\\capture_leaf.py\" --camera 0 --output-dir \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart Plantation System\\webcam\\plant_images\"",
+    "command": "python \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart-Plantation-System\\webcam\\capture_leaf.py\" --camera 0 --output-dir \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart-Plantation-System\\webcam\\plant_images\"",
     "addpay": false,
     "append": "",
     "useSpawn": "false",
@@ -576,9 +576,9 @@
     "id": "e052ae40e6f2323f",
     "type": "function",
     "z": "d6a9f1430c2f0c18",
-    "name": "Convert to dashboard image",
-    "func": "const base64 = Buffer.from(msg.payload).toString('base64');\nmsg.payload = `data:image/jpeg;base64,${base64}`;\nmsg.timestamp = new Date().toLocaleString();\nreturn msg;",
-    "outputs": 1,
+    "name": "Publish camera preview",
+    "func": "const capturedAt = new Date();\nconst dataUrl = `data:image/jpeg;base64,${Buffer.from(msg.payload).toString('base64')}`;\nconst capturedAtIso = capturedAt.toISOString();\nconst capturedAtText = capturedAt.toLocaleString();\n\nreturn [\n    { payload: dataUrl, timestamp: capturedAtText },\n    {\n        topic: 'smartplantation/camera/latest',\n        payload: JSON.stringify({\n            previewing: true,\n            captured_at: capturedAtIso,\n            image: dataUrl,\n            message: 'Camera is previewing'\n        })\n    },\n    {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({\n            previewing: true,\n            message: 'Camera is previewing',\n            captured_at: capturedAtIso,\n            latest_topic: 'smartplantation/camera/latest'\n        })\n    }\n];",
+    "outputs": 3,
     "timeout": 0,
     "noerr": 0,
     "initialize": "",
@@ -589,6 +589,12 @@
     "wires": [
       [
         "e055fae3f0b58086"
+      ],
+      [
+        "camera_latest_mqtt_out"
+      ],
+      [
+        "camera_status_mqtt_out"
       ]
     ]
   },
@@ -926,5 +932,213 @@
     "x": 600,
     "y": 890,
     "wires": []
+  },
+  {
+    "id": "camera_command_mqtt_in",
+    "type": "mqtt in",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Camera command MQTT",
+    "topic": "smartplantation/camera/command",
+    "qos": "0",
+    "datatype": "auto-detect",
+    "broker": "7c2e9f9d713f203b",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 160,
+    "y": 320,
+    "wires": [
+      [
+        "camera_command_router"
+      ]
+    ]
+  },
+  {
+    "id": "camera_command_router",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Route camera command",
+    "func": "let command = msg.payload;\nif (typeof command === 'object' && command !== null) {\n    command = command.camera ?? command.command ?? command.action ?? '';\n}\ncommand = String(command || '').trim().toUpperCase();\n\nif (!['START', 'PREVIEW', 'CAPTURE', 'REFRESH'].includes(command)) {\n    node.warn(`Unknown camera command: ${command || '(empty)'}`);\n    return [null, {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({ previewing: false, message: 'Unknown camera command. Use START or CAPTURE.' })\n    }];\n}\n\nreturn [\n    { payload: '', topic: `mqtt_${command.toLowerCase()}` },\n    {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({\n            previewing: true,\n            message: 'Camera capture requested. Preview updating...',\n            command\n        })\n    }\n];",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 410,
+    "y": 320,
+    "wires": [
+      [
+        "cd9dfe00be0ef3e0"
+      ],
+      [
+        "camera_status_mqtt_out"
+      ]
+    ]
+  },
+  {
+    "id": "camera_status_mqtt_out",
+    "type": "mqtt out",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Camera status publisher",
+    "topic": "",
+    "qos": "0",
+    "retain": "true",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "7c2e9f9d713f203b",
+    "x": 1380,
+    "y": 430,
+    "wires": []
+  },
+  {
+    "id": "camera_latest_mqtt_out",
+    "type": "mqtt out",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Camera latest image publisher",
+    "topic": "",
+    "qos": "0",
+    "retain": "true",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "7c2e9f9d713f203b",
+    "x": 1390,
+    "y": 390,
+    "wires": []
+  },
+  {
+    "id": "camera_status_mqtt_in",
+    "type": "mqtt in",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Camera status MQTT",
+    "topic": "smartplantation/camera/status",
+    "qos": "0",
+    "datatype": "auto-detect",
+    "broker": "7c2e9f9d713f203b",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 160,
+    "y": 540,
+    "wires": [
+      [
+        "camera_status_json"
+      ]
+    ]
+  },
+  {
+    "id": "camera_status_json",
+    "type": "json",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Parse camera status",
+    "property": "payload",
+    "action": "",
+    "pretty": false,
+    "x": 390,
+    "y": 540,
+    "wires": [
+      [
+        "camera_status_text",
+        "camera_status_debug"
+      ]
+    ]
+  },
+  {
+    "id": "camera_status_text",
+    "type": "ui_text",
+    "z": "d6a9f1430c2f0c18",
+    "group": "a1c5c8b3c42c4c08",
+    "order": 4,
+    "width": 12,
+    "height": 1,
+    "name": "Camera MQTT status",
+    "label": "Camera MQTT",
+    "format": "{{msg.payload.message || 'Waiting for camera status'}}",
+    "layout": "row-spread",
+    "className": "",
+    "x": 630,
+    "y": 520,
+    "wires": []
+  },
+  {
+    "id": "camera_status_debug",
+    "type": "debug",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Camera MQTT status debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 650,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "camera_start_preview_btn",
+    "type": "ui_button",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Start camera preview",
+    "group": "a1c5c8b3c42c4c08",
+    "order": 5,
+    "width": 4,
+    "height": 1,
+    "passthru": false,
+    "label": "Start Camera Preview",
+    "tooltip": "Publishes/captures the latest USB webcam image",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "icon": "videocam",
+    "payload": "START",
+    "payloadType": "str",
+    "topic": "dashboard_start_preview",
+    "topicType": "str",
+    "x": 160,
+    "y": 470,
+    "wires": [
+      [
+        "camera_command_router"
+      ]
+    ]
+  },
+  {
+    "id": "camera_refresh_preview_btn",
+    "type": "ui_button",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Refresh camera preview",
+    "group": "a1c5c8b3c42c4c08",
+    "order": 6,
+    "width": 4,
+    "height": 1,
+    "passthru": false,
+    "label": "Refresh Preview",
+    "tooltip": "Captures another webcam snapshot",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "icon": "refresh",
+    "payload": "CAPTURE",
+    "payloadType": "str",
+    "topic": "dashboard_refresh_preview",
+    "topicType": "str",
+    "x": 160,
+    "y": 510,
+    "wires": [
+      [
+        "camera_command_router"
+      ]
+    ]
   }
 ]
