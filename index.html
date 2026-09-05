@@ -118,7 +118,7 @@
             </div>
             <div class="webcam-network-row">
               <label for="network-stream-url">Laptop network stream URL</label>
-              <input type="text" id="network-stream-url" value="http://192.168.100.179:8000/stream.mjpg" placeholder="http://<laptop-ip>:8000/stream.mjpg" />
+              <input type="text" id="network-stream-url" value="" placeholder="http://<laptop-ip>:8000/stream.mjpg" />
               <button class="outline-btn" type="button" id="load-network-stream"><i data-lucide="wifi"></i>Load Network Stream</button>
               <button class="outline-btn" type="button" id="stop-network-stream"><i data-lucide="square"></i>Stop Stream</button>
               <span id="network-stream-status">Not connected</span>
@@ -179,14 +179,30 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="script.js"></script>
   <script>
-    // Network webcam stream (laptop USB webcam served by webcam_server.py over Wi-Fi)
+    // Network webcam stream (laptop USB webcam served by stream_host.py over Wi-Fi)
     (function () {
+      const STORAGE_KEY = 'smartplant-network-stream-url';
       const urlInput = document.getElementById('network-stream-url');
       const streamImg = document.getElementById('laptop-network-stream');
       const placeholder = document.getElementById('laptop-live-placeholder');
       const statusEl = document.getElementById('network-stream-status');
       const loadBtn = document.getElementById('load-network-stream');
       const stopBtn = document.getElementById('stop-network-stream');
+
+      // Prefill the field so you don't need to type the IP every time it changes:
+      // 1) If this dashboard was opened as http://<laptop-ip>:PORT/index.html (e.g. on your phone),
+      //    reuse that same host — it's almost certainly the laptop's current IP.
+      // 2) Otherwise fall back to the last URL that successfully loaded, saved locally.
+      if (!urlInput.value) {
+        const isHttpPage = location.protocol === 'http:' || location.protocol === 'https:';
+        const pageHost = location.hostname;
+        const savedUrl = localStorage.getItem(STORAGE_KEY);
+        if (isHttpPage && pageHost && pageHost !== 'localhost' && pageHost !== '127.0.0.1') {
+          urlInput.value = `http://${pageHost}:8000/stream.mjpg`;
+        } else if (savedUrl) {
+          urlInput.value = savedUrl;
+        }
+      }
 
       loadBtn?.addEventListener('click', () => {
         const url = (urlInput.value || '').trim();
@@ -201,6 +217,7 @@
         };
         streamImg.onload = () => {
           statusEl.textContent = 'Connected';
+          localStorage.setItem(STORAGE_KEY, url);
         };
         // Cache-bust so a stale/broken stream doesn't get stuck
         streamImg.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
