@@ -27,9 +27,10 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <DHT.h>
+#include <math.h>
 
 // ---------- WiFi settings ----------
-const char* WIFI_SSID = "B100M-T6";
+const char* WIFI_SSID = "B100M-T2";
 const char* WIFI_PASSWORD = "12345678";
 
 // ---------- MQTT settings ----------
@@ -37,7 +38,7 @@ const char* MQTT_SERVER = "broker.hivemq.com";
 const int MQTT_PORT = 1883;
 const char* MQTT_CLIENT_ID_PREFIX = "esp32_sensor_unit_";
 const char* MQTT_SENSOR_TOPIC = "smartplantation/sensors";
-const char* SENSOR_OUTPUT_FORMAT = "{\"temperature\":%.1f,\"humidity\":%.1f,\"soil_moisture\":%d,\"soil_digital\":%d,\"water_level\":%d,\"water_level_status\":\"%s\",\"water_distance_cm\":%.1f,\"soil_raw\":%d}";
+const char* SENSOR_OUTPUT_FORMAT = "{\"temperature\":%s,\"humidity\":%s,\"soil_moisture\":%d,\"soil_digital\":%d,\"water_level\":%d,\"water_level_status\":\"%s\",\"water_distance_cm\":%.1f,\"soil_raw\":%d}";
 
 // ---------- Pin assignment ----------
 const int DHT_PIN = 16;         // DHT11 data pin
@@ -47,9 +48,12 @@ const int ULTRASONIC_TRIG_PIN = 18; // Ultrasonic sensor TRIG
 const int ULTRASONIC_ECHO_PIN = 19; // Ultrasonic sensor ECHO through voltage divider if sensor is 5V
 
 // Your reference sketch uses DHT11.
-#define DHT_TYPE DHT11
+#define DHT_TYPE DHT22
 
 // Calibration values. Adjust after checking your real sensor readings.
+// Example: if DHT shows 32.0 C but a thermometer shows 30.5 C, set TEMPERATURE_OFFSET_C to -1.5.
+const float TEMPERATURE_OFFSET_C = 0.0;
+const float HUMIDITY_OFFSET_PERCENT = 0.0;
 const int SOIL_DRY_VALUE = 3200;
 const int SOIL_WET_VALUE = 1200;
 const int SOIL_DISCONNECTED_LOW = 50;
@@ -65,6 +69,8 @@ const float TANK_EMPTY_DISTANCE_CM = 20.0;
 const float TANK_FULL_DISTANCE_CM = 4.0;
 
 const unsigned long PUBLISH_INTERVAL_MS = 5000;
+const int DHT_RETRY_COUNT = 3;
+const int DHT_RETRY_DELAY_MS = 1200;
 
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
@@ -161,18 +167,69 @@ float readUltrasonicDistanceCm() {
   return duration * 0.0343 / 2.0;
 }
 
+bool isDhtReadingValid(float temperature, float humidity) {
+  if (isnan(temperature) || isnan(humidity)) {
+    return false;
+  }
+
+  return temperature >= -10.0 && temperature <= 60.0 && humidity >= 0.0 && humidity <= 100.0;
+}
+
+bool readDhtReadings(float* temperature, float* humidity) {
+  for (int attempt = 0; attempt < DHT_RETRY_COUNT; attempt++) {
+    float newHumidity = dht.readHumidity();
+    float newTemperature = dht.readTemperature();
+
+    if (isDhtReadingValid(newTemperature, newHumidity)) {
+      newTemperature += TEMPERATURE_OFFSET_C;
+      newHumidity += HUMIDITY_OFFSET_PERCENT;
+      if (newHumidity < 0.0) newHumidity = 0.0;
+      if (newHumidity > 100.0) newHumidity = 100.0;
+
+      *temperature = newTemperature;
+      *humidity = newHumidity;
+      return true;
+    }
+
+    if (attempt < DHT_RETRY_COUNT - 1) {
+      delay(DHT_RETRY_DELAY_MS);
+    }
+  }
+
+  *temperature = NAN;
+  *humidity = NAN;
+  return false;
+}
+
+void formatJsonFloat(char* output, size_t outputSize, float value) {
+  if (isnan(value)) {
+    snprintf(output, outputSize, "null");
+  } else {
+    snprintf(output, outputSize, "%.1f", value);
+  }
+}
+
 void printReadableSensorData(float temperature, float humidity, int soilMoisture, int waterLevel, float waterDistanceCm) {
   Serial.print("temperature: ");
-  Serial.print(temperature, 1);
-  Serial.println(" C");
+  if (isnan(temperature)) {
+    Serial.println("not detected");
+  } else {
+    Serial.print(temperature, 1);
+    Serial.println(" C");
+  }
 
   Serial.print("humidity: ");
-  Serial.print(humidity, 1);
-  Serial.println("%");
+  if (isnan(humidity)) {
+    Serial.println("not detected");
+  } else {
+    Serial.print(humidity, 1);
+    Serial.println("%");
+  }
 
   Serial.print("soil moisture: ");
   if (soilMoisture < 0) {
     Serial.println("not detected");
+        Serial.println(soilMoisture);
   } else {
     Serial.print(soilMoisture);
     Serial.println("%");
@@ -245,8 +302,9 @@ void connectMQTT() {
 }
 
 void publishSensorData() {
-  float temperature = dht.readTemperature();
-  float humidity = dht.readHumidity();
+  float temperature = NAN;
+  float humidity = NAN;
+  bool dhtDetected = readDhtReadings(&temperature, &humidity);
 
   int soilSampleSpread = 0;
   int soilRaw = readStableSoilRaw(&soilSampleSpread);
@@ -257,18 +315,22 @@ void publishSensorData() {
   int waterLevel = waterPercentFromDistance(waterDistanceCm);
   const char* waterStatus = waterLevelStatus(waterLevel);
 
-  if (isnan(temperature) || isnan(humidity)) {
-    temperature = -999;
-    humidity = -999;
+  if (!dhtDetected) {
+    Serial.println("DHT11 read failed. Check VCC, GND, DATA pin, and sensor type.");
   }
+
+  char temperatureJson[16];
+  char humidityJson[16];
+  formatJsonFloat(temperatureJson, sizeof(temperatureJson), temperature);
+  formatJsonFloat(humidityJson, sizeof(humidityJson), humidity);
 
   char payload[256];
   snprintf(
     payload,
     sizeof(payload),
     SENSOR_OUTPUT_FORMAT,
-    temperature,
-    humidity,
+    temperatureJson,
+    humidityJson,
     soilMoisture,
     soilDigital,
     waterLevel,

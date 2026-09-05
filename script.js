@@ -13,8 +13,8 @@ const MQTT_RELAY_CONFIG = {
     reconnectPeriod: 3000,
   },
   topics: {
-    pump: "smartplantation/control/fan",
-    fan: "smartplantation/control/pump",
+    pump: "smartplantation/control/pump",
+    fan: "smartplantation/control/fan",
     status: "smartplantation/status/relay",
     cameraCommand: "smartplantation/camera/command",
     cameraStatus: "smartplantation/camera/status",
@@ -73,21 +73,21 @@ function handleRelayStatus(payload) {
 
   if (status.pump) {
     const isOn = String(status.pump).toUpperCase() === "ON";
-    setActuatorState("fan", isOn);
-    const fanRule = document.querySelector('[data-rule-actuator="fan"]');
-    const fanLabel = document.getElementById("schedule-fan-rule-status");
-    if (fanRule) fanRule.classList.toggle("active", isOn);
-    if (fanRule) fanRule.setAttribute("aria-pressed", String(isOn));
-    if (fanLabel) fanLabel.textContent = `Fan ${isOn ? "ON" : "OFF"}`;
-  }
-  if (status.fan) {
-    const isOn = String(status.fan).toUpperCase() === "ON";
     setActuatorState("pump", isOn);
     const pumpRule = document.querySelector('[data-rule-actuator="pump"]');
     const pumpLabel = document.getElementById("schedule-pump-rule-status");
     if (pumpRule) pumpRule.classList.toggle("active", isOn);
     if (pumpRule) pumpRule.setAttribute("aria-pressed", String(isOn));
     if (pumpLabel) pumpLabel.textContent = `Pump ${isOn ? "ON" : "OFF"}`;
+  }
+  if (status.fan) {
+    const isOn = String(status.fan).toUpperCase() === "ON";
+    setActuatorState("fan", isOn);
+    const fanRule = document.querySelector('[data-rule-actuator="fan"]');
+    const fanLabel = document.getElementById("schedule-fan-rule-status");
+    if (fanRule) fanRule.classList.toggle("active", isOn);
+    if (fanRule) fanRule.setAttribute("aria-pressed", String(isOn));
+    if (fanLabel) fanLabel.textContent = `Fan ${isOn ? "ON" : "OFF"}`;
   }
 }
 
@@ -194,6 +194,24 @@ function publishCameraCommand(command) {
   });
 }
 
+function stopLeafWebcam() {
+  const video = document.getElementById("laptop-live-preview");
+  const placeholder = document.getElementById("laptop-live-placeholder");
+
+  if (leafWebcamStream) {
+    leafWebcamStream.getTracks().forEach((track) => track.stop());
+    leafWebcamStream = null;
+  }
+
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.classList.remove("has-image");
+  }
+
+  if (placeholder) placeholder.hidden = false;
+}
+
 function handleCameraStatus(payload) {
   let status = payload;
   if (typeof status === "string") {
@@ -231,14 +249,58 @@ function handleCameraLatest(payload) {
   setWebcamStatus(`Laptop camera is previewing. Latest update: ${capturedAt}`);
 }
 
-function startLeafWebcam() {
-  publishCameraCommand("START");
+async function startLeafWebcam() {
+  const video = document.getElementById("laptop-live-preview");
+  const placeholder = document.getElementById("laptop-live-placeholder");
+  if (!video) return;
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setWebcamStatus("This browser cannot open a camera preview.");
+    return;
+  }
+
+  try {
+    setWebcamStatus("Requesting camera permission...");
+    stopLeafWebcam();
+    leafWebcamStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
+    });
+
+    video.srcObject = leafWebcamStream;
+    await video.play();
+    video.classList.add("has-image");
+    if (placeholder) placeholder.hidden = true;
+    setWebcamStatus("Live camera preview is showing.");
+  } catch (error) {
+    console.error(error);
+    setWebcamStatus("Camera failed. Allow camera permission and check that the webcam is connected.");
+  }
 }
 
 function captureLeafPhoto() {
-  publishCameraCommand("CAPTURE");
-}
+  const video = document.getElementById("laptop-live-preview");
+  const canvas = document.getElementById("leaf-webcam-canvas");
+  const image = document.getElementById("leaf-captured-image");
+  const placeholder = document.getElementById("leaf-captured-placeholder");
 
+  if (!video?.srcObject || !canvas || !image || !video.videoWidth || !video.videoHeight) {
+    setWebcamStatus("Start the live camera preview before capturing.");
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext("2d");
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  image.src = canvas.toDataURL("image/jpeg", 0.9);
+  image.classList.add("has-image");
+  if (placeholder) placeholder.hidden = true;
+  setWebcamStatus("Snapshot captured from the live camera.");
+}
 
 function clearLeafPhoto() {
   const image = document.getElementById("leaf-captured-image");
@@ -251,50 +313,21 @@ function clearLeafPhoto() {
   setWebcamStatus("Captured image cleared");
 }
 
-
-function updateNodeRedAccessUrl() {
-  const input = document.getElementById("node-red-ip-input");
-  const display = document.getElementById("node-red-access-url");
-  if (!input || !display) return "";
-
-  const ip = input.value.trim();
-  const url = ip ? `http://${ip}:1880/ui` : "http://YOUR_COMPUTER_IP:1880/ui";
-  display.textContent = url;
-  if (ip) localStorage.setItem("smartplant_node_red_ip", ip);
-  return ip ? url : "";
-}
-
-function initNodeRedAccessHelper() {
-  const input = document.getElementById("node-red-ip-input");
-  const openButton = document.getElementById("open-node-red-dashboard");
-  if (!input || !openButton) return;
-
-  input.value = localStorage.getItem("smartplant_node_red_ip") || "";
-  updateNodeRedAccessUrl();
-  input.addEventListener("input", updateNodeRedAccessUrl);
-  openButton.addEventListener("click", () => {
-    const url = updateNodeRedAccessUrl();
-    if (!url) {
-      setWebcamStatus("Enter this computer's IPv4 address first.");
-      input.focus();
-      return;
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
-  });
-}
-
 function initLeafWebcam() {
   const startButton = document.getElementById("start-webcam");
+  const stopButton = document.getElementById("stop-webcam");
   const captureButton = document.getElementById("capture-leaf-photo");
   const clearButton = document.getElementById("clear-leaf-photo");
-if (!startButton || !captureButton || !clearButton) return;
-
-initNodeRedAccessHelper();
+if (!startButton || !stopButton) return;
 
 startButton.addEventListener("click", startLeafWebcam);
-  captureButton.addEventListener("click", captureLeafPhoto);
-  clearButton.addEventListener("click", clearLeafPhoto);
-setWebcamStatus("Use START or CAPTURE to request the laptop USB camera through Node-RED.");
+  stopButton.addEventListener("click", () => {
+    stopLeafWebcam();
+    setWebcamStatus("Live camera preview stopped.");
+  });
+  captureButton?.addEventListener("click", captureLeafPhoto);
+  clearButton?.addEventListener("click", clearLeafPhoto);
+setWebcamStatus("Press Start Laptop Camera to show the live preview here.");
 }
 
 const WEATHER_CONFIG = {
@@ -383,15 +416,22 @@ const SUPABASE_CONFIG = {
 let cachedSupabaseReadings = [];
 let analyticsRange = "7";
 
-function formatNumber(value, digits = 1) {
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
-  if (!Number.isFinite(number)) return "--";
+  if (!Number.isFinite(number) || number <= -900) return null;
+  return number;
+}
+
+function formatNumber(value, digits = 1) {
+  const number = numberOrNull(value);
+  if (number === null) return "--";
   return number.toFixed(digits);
 }
 
 function formatPercent(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0) return "--%";
+  const number = numberOrNull(value);
+  if (number === null || number < 0) return "--%";
   return `${Math.round(number)}%`;
 }
 
@@ -417,8 +457,8 @@ function setRingValue(name, value) {
   const ring = document.querySelector(`[data-ring="${name}"]`);
   if (!ring) return;
 
-  const number = Number(value);
-  ring.style.setProperty("--value", Number.isFinite(number) && number >= 0 ? Math.max(0, Math.min(100, number)) : 0);
+  const number = numberOrNull(value);
+  ring.style.setProperty("--value", number !== null && number >= 0 ? Math.max(0, Math.min(100, number)) : 0);
 }
 
 function updateLiveSensorUI(readings) {
@@ -442,7 +482,8 @@ function updateLiveSensorUI(readings) {
 
   setRingValue("soil_moisture", latest.soil_moisture);
   setRingValue("water_level", latest.water_level);
-  setRingValue("temperature", Number(latest.temperature) * 2);
+  const temperature = numberOrNull(latest.temperature);
+  setRingValue("temperature", temperature === null ? null : temperature * 2);
 }
 
 function updateDashboardReadingsTable(readings) {
@@ -468,8 +509,8 @@ function updateDashboardReadingsTable(readings) {
 
 function numericReadings(readings, field) {
   return readings
-    .map((reading) => Number(reading[field]))
-    .filter((number) => Number.isFinite(number));
+    .map((reading) => numberOrNull(reading[field]))
+    .filter((number) => number !== null);
 }
 
 function average(values) {
@@ -478,8 +519,8 @@ function average(values) {
 }
 
 function percentFor(value, max) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 0;
+  const number = numberOrNull(value);
+  if (number === null) return 0;
   return Math.max(0, Math.min(100, (number / max) * 100));
 }
 
@@ -496,8 +537,8 @@ function filterReadingsByRange(readings) {
 }
 
 function buildTrendPath(points, field) {
-  const values = points.map((reading) => Number(reading[field]));
-  const validValues = values.filter((value) => Number.isFinite(value));
+  const values = points.map((reading) => numberOrNull(reading[field]));
+  const validValues = values.filter((value) => value !== null);
   if (validValues.length < 2) return "";
 
   const min = Math.min(...validValues);
@@ -509,8 +550,7 @@ function buildTrendPath(points, field) {
   const top = 58;
 
   return points.map((reading, index) => {
-    const raw = Number(reading[field]);
-    const value = Number.isFinite(raw) ? raw : min;
+    const value = numberOrNull(reading[field]) ?? min;
     const x = left + (index / Math.max(1, points.length - 1)) * width;
     const y = top + height - ((value - min) / range) * height;
     return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
@@ -834,9 +874,3 @@ if (window.lucide) {
     },
   });
 }
-
-
-
-
-
-

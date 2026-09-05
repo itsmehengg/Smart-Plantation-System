@@ -1571,6 +1571,7 @@ td svg,
   object-fit: cover;
 }
 
+.webcam-panel video:not(.has-image),
 .webcam-panel img:not(.has-image) {
   display: none;
 }

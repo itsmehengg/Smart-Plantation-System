@@ -14,9 +14,24 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    camera = cv2.VideoCapture(args.camera)
-    if not camera.isOpened():
-        raise RuntimeError(f"Could not open camera index {args.camera}")
+    backends = [
+        ("DirectShow", cv2.CAP_DSHOW),
+        ("Media Foundation", cv2.CAP_MSMF),
+        ("Default", cv2.CAP_ANY),
+    ]
+
+    camera = None
+    opened_with = None
+    for backend_name, backend in backends:
+        candidate = cv2.VideoCapture(args.camera, backend)
+        if candidate.isOpened():
+            camera = candidate
+            opened_with = backend_name
+            break
+        candidate.release()
+
+    if camera is None:
+        raise RuntimeError(f"Could not open camera index {args.camera}. Try --camera 1 if another camera is connected.")
 
     ok, frame = camera.read()
     camera.release()

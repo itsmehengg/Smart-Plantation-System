@@ -22,7 +22,7 @@
 #include <PubSubClient.h>
 
 // ---------- WiFi settings ----------
-const char* WIFI_SSID = "B100M-T6";
+const char* WIFI_SSID = "B100M-T2";
 const char* WIFI_PASSWORD = "12345678";
 
 // ---------- MQTT settings ----------

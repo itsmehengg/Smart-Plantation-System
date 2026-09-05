@@ -4,7 +4,7 @@
     "type": "tab",
     "label": "Smart Plantation + Webcam",
     "disabled": false,
-    "info": "Import this flow into Node-RED. It reads ESP32 MQTT sensor data, captures USB webcam leaf snapshots from the computer running Node-RED, and publishes camera preview status/latest image over MQTT for remote dashboards."
+    "info": "Import this flow into Node-RED. It reads ESP32 MQTT sensor data, captures laptop webcam snapshots on request, and receives live object-detection results from the SmartPlant dashboard over MQTT."
   },
   {
     "id": "7c2e9f9d713f203b",
@@ -509,7 +509,7 @@
     "id": "cd9dfe00be0ef3e0",
     "type": "exec",
     "z": "d6a9f1430c2f0c18",
-    "command": "python \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart-Plantation-System\\webcam\\capture_leaf.py\" --camera 0 --output-dir \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart-Plantation-System\\webcam\\plant_images\"",
+    "command": "\"C:\\Users\\ngweiheng\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe\" \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart-Plantation-System\\webcam\\capture_leaf.py\" --camera 0 --output-dir \"C:\\Users\\ngweiheng\\OneDrive\\桌面\\git\\Smart-Plantation-System\\webcam\\plant_images\"",
     "addpay": false,
     "append": "",
     "useSpawn": "false",
@@ -959,7 +959,7 @@
     "type": "function",
     "z": "d6a9f1430c2f0c18",
     "name": "Route camera command",
-    "func": "let command = msg.payload;\nif (typeof command === 'object' && command !== null) {\n    command = command.camera ?? command.command ?? command.action ?? '';\n}\ncommand = String(command || '').trim().toUpperCase();\n\nif (!['START', 'PREVIEW', 'CAPTURE', 'REFRESH'].includes(command)) {\n    node.warn(`Unknown camera command: ${command || '(empty)'}`);\n    return [null, {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({ previewing: false, message: 'Unknown camera command. Use START or CAPTURE.' })\n    }];\n}\n\nreturn [\n    { payload: '', topic: `mqtt_${command.toLowerCase()}` },\n    {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({\n            previewing: true,\n            message: 'Camera capture requested. Preview updating...',\n            command\n        })\n    }\n];",
+    "func": "let command = msg.payload;\nif (typeof command === 'object' && command !== null) {\n    command = command.camera ?? command.command ?? command.action ?? '';\n}\ncommand = String(command || '').trim().toUpperCase();\n\nif (command === 'STOP') {\n    return [null, {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({ previewing: false, message: 'Laptop camera CCTV mode stopped', command })\n    }];\n}\n\nif (!['START', 'PREVIEW', 'CAPTURE', 'REFRESH'].includes(command)) {\n    node.warn(`Unknown camera command: ${command || '(empty)'}`);\n    return [null, {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({ previewing: false, message: 'Unknown camera command. Use START, CAPTURE, REFRESH, or STOP.' })\n    }];\n}\n\nreturn [\n    { payload: '', topic: `mqtt_${command.toLowerCase()}` },\n    {\n        topic: 'smartplantation/camera/status',\n        payload: JSON.stringify({\n            previewing: true,\n            message: 'Camera snapshot requested. CCTV preview updating...',\n            command\n        })\n    }\n];",
     "outputs": 2,
     "timeout": 0,
     "noerr": 0,
@@ -1140,5 +1140,97 @@
         "camera_command_router"
       ]
     ]
+  },
+  {
+    "id": "camera_detections_mqtt_in",
+    "type": "mqtt in",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Camera object detections",
+    "topic": "smartplantation/camera/detections",
+    "qos": "0",
+    "datatype": "auto-detect",
+    "broker": "7c2e9f9d713f203b",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 170,
+    "y": 940,
+    "wires": [
+      [
+        "camera_detections_json"
+      ]
+    ]
+  },
+  {
+    "id": "camera_detections_json",
+    "type": "json",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Parse detections",
+    "property": "payload",
+    "action": "",
+    "pretty": false,
+    "x": 390,
+    "y": 940,
+    "wires": [
+      [
+        "camera_detections_format",
+        "camera_detections_debug"
+      ]
+    ]
+  },
+  {
+    "id": "camera_detections_format",
+    "type": "function",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Format detected objects",
+    "func": "const p = msg.payload || {};\nconst objects = Array.isArray(p.objects) ? p.objects : [];\nconst labels = objects.map((item) => `${item.class} ${Math.round(Number(item.score || 0) * 100)}%`);\nmsg.payload = labels.length ? `${p.count || labels.length} object(s): ${labels.join(', ')}` : 'No objects detected';\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 620,
+    "y": 920,
+    "wires": [
+      [
+        "camera_detections_text"
+      ]
+    ]
+  },
+  {
+    "id": "camera_detections_text",
+    "type": "ui_text",
+    "z": "d6a9f1430c2f0c18",
+    "group": "a1c5c8b3c42c4c08",
+    "order": 7,
+    "width": 12,
+    "height": 1,
+    "name": "Detected objects",
+    "label": "Detected objects",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "className": "",
+    "x": 860,
+    "y": 920,
+    "wires": []
+  },
+  {
+    "id": "camera_detections_debug",
+    "type": "debug",
+    "z": "d6a9f1430c2f0c18",
+    "name": "Camera detections payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 650,
+    "y": 970,
+    "wires": []
   }
 ]

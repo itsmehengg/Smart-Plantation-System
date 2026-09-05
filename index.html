@@ -109,41 +109,25 @@
             <div class="card-title">
               <div>
                 <h2>Leaf Webcam</h2>
-                <p id="webcam-status">Waiting for Node-RED camera</p>
+                <p id="webcam-status">Waiting for camera permission</p>
               </div>
               <div class="webcam-actions">
                 <button class="outline-btn" type="button" id="start-webcam"><i data-lucide="video"></i>Start Laptop Camera</button>
-                <button class="primary-btn" type="button" id="capture-leaf-photo"><i data-lucide="camera"></i>Capture</button>
-                <button class="outline-btn" type="button" id="clear-leaf-photo"><i data-lucide="x"></i>Clear</button>
+                <button class="outline-btn" type="button" id="stop-webcam"><i data-lucide="square"></i>Stop</button>
               </div>
+            </div>
+            <div class="webcam-network-row">
+              <label for="network-stream-url">Laptop network stream URL</label>
+              <input type="text" id="network-stream-url" value="http://192.168.100.179:8000/stream.mjpg" placeholder="http://<laptop-ip>:8000/stream.mjpg" />
+              <button class="outline-btn" type="button" id="load-network-stream"><i data-lucide="wifi"></i>Load Network Stream</button>
+              <button class="outline-btn" type="button" id="stop-network-stream"><i data-lucide="square"></i>Stop Stream</button>
+              <span id="network-stream-status">Not connected</span>
             </div>
             <div class="webcam-grid">
               <div class="webcam-panel">
-                <div class="remote-camera-panel"><i data-lucide="monitor-up"></i><strong>Laptop USB Camera</strong><span>Preview arrives from Node-RED MQTT</span></div>
-              </div>
-              <div class="webcam-panel captured">
-                <canvas id="leaf-webcam-canvas" hidden></canvas>
-                <img id="leaf-captured-image" alt="Captured plant leaf" />
-                <span id="leaf-captured-placeholder">No captured image yet</span>
-              </div>
-            </div>
-            <div class="webcam-access-card">
-              <div>
-                <h3>Same WiFi Access</h3>
-                <p>Other users can open your Node-RED dashboard when their device is on the same WiFi as this computer.</p>
-              </div>
-              <div class="webcam-access-form">
-                <label for="node-red-ip-input">Computer IPv4 address</label>
-                <div>
-                  <input id="node-red-ip-input" type="text" inputmode="decimal" placeholder="192.168.1.25" />
-                  <button class="outline-btn" type="button" id="open-node-red-dashboard"><i data-lucide="external-link"></i>Open</button>
-                </div>
-                <code id="node-red-access-url">http://YOUR_COMPUTER_IP:1880/ui</code>
-              </div>
-              <div class="webcam-topic-list">
-                <span>MQTT command: <code>smartplantation/camera/command</code></span>
-                <span>MQTT status: <code>smartplantation/camera/status</code></span>
-                <span>MQTT image: <code>smartplantation/camera/latest</code></span>
+                <video id="laptop-live-preview" autoplay playsinline muted></video>
+                <img id="laptop-network-stream" alt="Live stream from laptop USB webcam" hidden />
+                <div class="remote-camera-panel" id="laptop-live-placeholder"><i data-lucide="monitor-up"></i><strong>Laptop USB Camera</strong><span>Press Start Laptop Camera for a local preview, or Load Network Stream to view over Wi-Fi (e.g. from your phone)</span></div>
               </div>
             </div>
           </article>
@@ -194,7 +178,44 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="script.js"></script>
+  <script>
+    // Network webcam stream (laptop USB webcam served by webcam_server.py over Wi-Fi)
+    (function () {
+      const urlInput = document.getElementById('network-stream-url');
+      const streamImg = document.getElementById('laptop-network-stream');
+      const placeholder = document.getElementById('laptop-live-placeholder');
+      const statusEl = document.getElementById('network-stream-status');
+      const loadBtn = document.getElementById('load-network-stream');
+      const stopBtn = document.getElementById('stop-network-stream');
+
+      loadBtn?.addEventListener('click', () => {
+        const url = (urlInput.value || '').trim();
+        if (!url) {
+          statusEl.textContent = 'Enter a stream URL first';
+          return;
+        }
+        streamImg.onerror = () => {
+          statusEl.textContent = 'Could not reach stream — check laptop IP, port, and Wi-Fi';
+          streamImg.hidden = true;
+          placeholder.hidden = false;
+        };
+        streamImg.onload = () => {
+          statusEl.textContent = 'Connected';
+        };
+        // Cache-bust so a stale/broken stream doesn't get stuck
+        streamImg.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+        streamImg.hidden = false;
+        placeholder.hidden = true;
+        statusEl.textContent = 'Connecting…';
+      });
+
+      stopBtn?.addEventListener('click', () => {
+        streamImg.src = '';
+        streamImg.hidden = true;
+        placeholder.hidden = false;
+        statusEl.textContent = 'Not connected';
+      });
+    })();
+  </script>
 </body>
 </html>
-
-
