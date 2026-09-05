@@ -117,8 +117,8 @@
               </div>
             </div>
             <div class="webcam-network-row">
-              <label for="network-stream-url">Laptop network stream URL</label>
-              <input type="text" id="network-stream-url" value="" placeholder="http://<laptop-ip>:8000/stream.mjpg" />
+              <label for="network-stream-url">Laptop IP address</label>
+              <input type="text" id="network-stream-url" value="" inputmode="url" placeholder="192.168.1.25" />
               <button class="outline-btn" type="button" id="load-network-stream"><i data-lucide="wifi"></i>Load Network Stream</button>
               <button class="outline-btn" type="button" id="stop-network-stream"><i data-lucide="square"></i>Stop Stream</button>
               <span id="network-stream-status">Not connected</span>
@@ -205,11 +205,14 @@
       }
 
       loadBtn?.addEventListener('click', () => {
-        const url = (urlInput.value || '').trim();
-        if (!url) {
+        const enteredValue = (urlInput.value || '').trim();
+        if (!enteredValue) {
           statusEl.textContent = 'Enter a stream URL first';
           return;
         }
+        const url = /^[a-z][a-z\d+.-]*:\/\//i.test(enteredValue)
+          ? enteredValue
+          : `http://${enteredValue.replace(/\/$/, '')}:8000/stream.mjpg`;
         streamImg.onerror = () => {
           statusEl.textContent = 'Could not reach stream — check laptop IP, port, and Wi-Fi';
           streamImg.hidden = true;
