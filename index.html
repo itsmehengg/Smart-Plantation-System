@@ -112,22 +112,27 @@
                 <p id="webcam-status">Waiting for camera permission</p>
               </div>
               <div class="webcam-actions">
-                <button class="outline-btn" type="button" id="start-webcam"><i data-lucide="video"></i>Start Laptop Camera</button>
+                <button class="outline-btn" type="button" id="start-webcam"><i data-lucide="video"></i>Browser Preview</button>
                 <button class="outline-btn" type="button" id="stop-webcam"><i data-lucide="square"></i>Stop</button>
               </div>
             </div>
             <div class="webcam-network-row">
-              <label for="network-stream-url">Laptop IP address</label>
-              <input type="text" id="network-stream-url" value="" inputmode="url" placeholder="192.168.1.25" />
-              <button class="outline-btn" type="button" id="load-network-stream"><i data-lucide="wifi"></i>Load Network Stream</button>
+              <label for="network-stream-url">USB webcam host</label>
+              <input type="text" id="network-stream-url" value="" inputmode="url" placeholder="192.168.100.179 or HTTPS ngrok URL" />
+              <button class="outline-btn" type="button" id="load-network-stream"><i data-lucide="scan-search"></i>Start YOLO Detection</button>
               <button class="outline-btn" type="button" id="stop-network-stream"><i data-lucide="square"></i>Stop Stream</button>
               <span id="network-stream-status">Not connected</span>
+              <span id="network-detection-status">Detection inactive</span>
+            </div>
+            <div class="webcam-detection-row" aria-live="polite">
+              <strong>YOLO11 detection</strong>
+              <span id="network-detection-results">Start the network stream to check detections.</span>
             </div>
             <div class="webcam-grid">
               <div class="webcam-panel">
                 <video id="laptop-live-preview" autoplay playsinline muted></video>
                 <img id="laptop-network-stream" alt="Live stream from laptop USB webcam" hidden />
-                <div class="remote-camera-panel" id="laptop-live-placeholder"><i data-lucide="monitor-up"></i><strong>Laptop USB Camera</strong><span>Press Start Laptop Camera for a local preview, or Load Network Stream to view over Wi-Fi (e.g. from your phone)</span></div>
+                <div class="remote-camera-panel" id="laptop-live-placeholder"><i data-lucide="monitor-up"></i><strong>Laptop USB Camera + YOLO11</strong><span>Run stream_host.py on the laptop, then enter its IP or HTTPS ngrok URL and start YOLO detection.</span></div>
               </div>
             </div>
           </article>
@@ -186,8 +191,11 @@
       const streamImg = document.getElementById('laptop-network-stream');
       const placeholder = document.getElementById('laptop-live-placeholder');
       const statusEl = document.getElementById('network-stream-status');
+      const detectionStatusEl = document.getElementById('network-detection-status');
+      const detectionResultsEl = document.getElementById('network-detection-results');
       const loadBtn = document.getElementById('load-network-stream');
       const stopBtn = document.getElementById('stop-network-stream');
+      let detectionTimer = null;
 
       // Prefill the field so you don't need to type the IP every time it changes:
       // 1) If this dashboard was opened as http://<laptop-ip>:PORT/index.html (e.g. on your phone),
@@ -201,6 +209,32 @@
           urlInput.value = `http://${pageHost}:8000/stream.mjpg`;
         } else if (savedUrl) {
           urlInput.value = savedUrl;
+        }
+      }
+
+      function stopDetectionPolling() {
+        if (detectionTimer) {
+          window.clearInterval(detectionTimer);
+          detectionTimer = null;
+        }
+      }
+
+      async function updateDetectionStatus(url) {
+        const detectionUrl = new URL('/detections.json', url).toString();
+        try {
+          const response = await fetch(`${detectionUrl}?t=${Date.now()}`, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Detection endpoint returned ${response.status}`);
+          const data = await response.json();
+          const objects = Array.isArray(data.objects) ? data.objects : [];
+          detectionStatusEl.textContent = 'Detection active';
+          detectionStatusEl.classList.add('is-connected');
+          detectionResultsEl.textContent = objects.length
+            ? `${objects.length} detected: ${objects.map((item) => `${item.class} (${Math.round(item.score * 100)}%)`).join(', ')}`
+            : 'Detection active. No objects found in the latest frame.';
+        } catch (error) {
+          detectionStatusEl.textContent = 'Detection unavailable';
+          detectionStatusEl.classList.remove('is-connected');
+          detectionResultsEl.textContent = 'The stream is connected, but /detections.json could not be reached.';
         }
       }
 
@@ -221,6 +255,9 @@
         streamImg.onload = () => {
           statusEl.textContent = 'Connected';
           localStorage.setItem(STORAGE_KEY, url);
+          stopDetectionPolling();
+          updateDetectionStatus(url);
+          detectionTimer = window.setInterval(() => updateDetectionStatus(url), 1000);
         };
         // Cache-bust so a stale/broken stream doesn't get stuck
         streamImg.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
@@ -234,6 +271,10 @@
         streamImg.hidden = true;
         placeholder.hidden = false;
         statusEl.textContent = 'Not connected';
+        stopDetectionPolling();
+        detectionStatusEl.textContent = 'Detection inactive';
+        detectionStatusEl.classList.remove('is-connected');
+        detectionResultsEl.textContent = 'Start the network stream to check detections.';
       });
     })();
   </script>

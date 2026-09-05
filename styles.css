@@ -40,6 +40,28 @@ button {
   min-height: 100vh;
 }
 
+.webcam-detection-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.webcam-detection-row strong {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+#network-detection-status {
+  color: var(--danger);
+}
+
+#network-detection-status.is-connected {
+  color: var(--green-2);
+}
+
 .sidebar {
   position: sticky;
   top: 0;

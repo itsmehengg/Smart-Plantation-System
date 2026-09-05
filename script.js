@@ -327,7 +327,7 @@ startButton.addEventListener("click", startLeafWebcam);
   });
   captureButton?.addEventListener("click", captureLeafPhoto);
   clearButton?.addEventListener("click", clearLeafPhoto);
-setWebcamStatus("Press Start Laptop Camera to show the live preview here.");
+setWebcamStatus("Browser Preview shows the USB camera without YOLO detection.");
 }
 
 const WEATHER_CONFIG = {
