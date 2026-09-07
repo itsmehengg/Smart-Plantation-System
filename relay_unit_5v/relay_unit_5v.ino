@@ -1,29 +1,9 @@
-/*
-  Smart Plantation System - ESP32 Relay Control Unit
-
-  Board role:
-  - ESP32 is powered from 5V through USB/VIN
-  - Controls a 2-channel relay module
-  - Receives pump/fan commands from Node-RED using MQTT
-
-  Important:
-  - ESP32 GPIO pins are still 3.3V logic, even when powered from 5V.
-  - Most relay modules are active LOW. If your relay works backward, change RELAY_ACTIVE_LOW.
-
-  Required Arduino library:
-  - PubSubClient by Nick O'Leary
-
-  MQTT commands:
-  - smartplantation/control/pump payload: ON or OFF
-  - smartplantation/control/fan payload: ON or OFF
-*/
-
 #include <WiFi.h>
 #include <PubSubClient.h>
 
 // ---------- WiFi settings ----------
-const char* WIFI_SSID = "B100M-T2";
-const char* WIFI_PASSWORD = "12345678";
+const char* WIFI_SSID = "B33-20_samleezx-TIME";
+const char* WIFI_PASSWORD = "01127118938";
 
 // ---------- MQTT settings ----------
 const char* MQTT_SERVER = "broker.hivemq.com";
@@ -35,8 +15,8 @@ const char* MQTT_FAN_TOPIC = "smartplantation/control/fan";
 const char* MQTT_STATUS_TOPIC = "smartplantation/status/relay";
 
 // ---------- Pin assignment ----------
-const int RELAY_1_PUMP_PIN = 26; // Relay channel 1 IN1
-const int RELAY_2_FAN_PIN = 27;  // Relay channel 2 IN2
+const int RELAY_1_PUMP_PIN = 27; // Physical pump channel currently connected to GPIO 27
+const int RELAY_2_FAN_PIN = 26;  // Physical fan channel currently connected to GPIO 26
 
 const bool RELAY_ACTIVE_LOW = true;
 

@@ -8,8 +8,13 @@ create table if not exists public.plant_sensor_readings (
   water_level integer,
   water_level_status text,
   water_distance_cm numeric,
-  soil_raw integer
+  soil_raw integer,
+  image_url text
 );
+
+-- Keeps existing installations compatible when this script is run again.
+alter table public.plant_sensor_readings
+add column if not exists image_url text;
 
 alter table public.plant_sensor_readings enable row level security;
 
@@ -26,3 +31,22 @@ on public.plant_sensor_readings
 for select
 to anon
 using (true);
+
+-- Storage bucket used by the manual webcam capture button.
+insert into storage.buckets (id, name, public)
+values ('plant-images', 'plant-images', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Allow public plant image uploads" on storage.objects;
+create policy "Allow public plant image uploads"
+on storage.objects
+for insert
+to anon
+with check (bucket_id = 'plant-images');
+
+drop policy if exists "Allow public plant image reads" on storage.objects;
+create policy "Allow public plant image reads"
+on storage.objects
+for select
+to anon
+using (bucket_id = 'plant-images');

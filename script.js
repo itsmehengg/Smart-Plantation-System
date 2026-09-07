@@ -250,6 +250,15 @@ function handleCameraLatest(payload) {
 }
 
 async function startLeafWebcam() {
+  // YOLO detection is performed by the Flask/Ultralytics camera server. Do not
+  // open a second browser camera stream, because that can lock the USB camera
+  // and prevent the Python process from reading frames.
+  const yoloButton = document.getElementById("load-network-stream");
+  if (yoloButton) {
+    yoloButton.click();
+    return;
+  }
+
   const video = document.getElementById("laptop-live-preview");
   const placeholder = document.getElementById("laptop-live-placeholder");
   if (!video) return;
@@ -414,7 +423,7 @@ const SUPABASE_CONFIG = {
 };
 
 let cachedSupabaseReadings = [];
-let analyticsRange = "7";
+let analyticsRange = "all";
 
 function numberOrNull(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -525,6 +534,7 @@ function percentFor(value, max) {
 }
 
 function filterReadingsByRange(readings) {
+  if (analyticsRange === "all") return readings;
   if (analyticsRange === "ytd") {
     const start = new Date(new Date().getFullYear(), 0, 1);
     return readings.filter((reading) => new Date(reading.created_at) >= start);
@@ -559,7 +569,6 @@ function buildTrendPath(points, field) {
 
 function updateAnalyticsSummary(readings) {
   const chart = document.getElementById("analytics-sensor-chart");
-  if (!chart) return;
 
   const filtered = filterReadingsByRange(readings);
   const chronological = filtered.slice().reverse();
@@ -592,7 +601,8 @@ function updateAnalyticsSummary(readings) {
   const trend = Number.isFinite(firstSoil) && Number.isFinite(latestSoil) ? latestSoil - firstSoil : null;
   setText("analytics-trend-badge", trend === null ? "--" : `${trend >= 0 ? "+" : ""}${Math.round(trend)}% soil`);
 
-  if (chronological.length < 2) {
+  if (!chart || chronological.length < 2) {
+    if (!chart) return;
     chart.innerHTML = '<text x="260" y="180">Need at least 2 Supabase readings for trend chart</text>';
     return;
   }
@@ -669,6 +679,64 @@ function updateAnalyticsReadingsTable(readings) {
   `).join("");
 }
 
+function updateSensorTimeTables(readings) {
+  const tables = [
+    { id: "water-level-time-table", chart: "water-level-chart", field: "water_level", suffix: "%", color: "#007a5f", format: (value) => Math.round(value) },
+    { id: "temperature-time-table", chart: "temperature-chart", field: "temperature", suffix: " C", color: "#36b9aa", format: (value) => formatNumber(value) },
+    { id: "soil-moisture-time-table", chart: "soil-moisture-chart", field: "soil_moisture", suffix: "%", color: "#40dacb", format: (value) => Math.round(value) },
+  ];
+
+  tables.forEach(({ id, chart, field, suffix, color, format }) => {
+    const table = document.getElementById(id);
+    if (!table) return;
+
+    const rows = readings
+      .filter((reading) => numberOrNull(reading[field]) !== null)
+      .slice()
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    table.innerHTML = rows.length
+      ? rows.map((reading) => {
+        const value = numberOrNull(reading[field]);
+        return `<tr><td>${formatReadingTime(reading.created_at)}</td><td>${format(value)}${suffix}</td></tr>`;
+      }).join("")
+      : '<tr><td colspan="2">No readings found</td></tr>';
+
+    renderSensorChart(chart, rows.slice().reverse(), field, color, suffix);
+  });
+}
+
+function renderSensorChart(chartId, readings, field, color, suffix) {
+  const chart = document.getElementById(chartId);
+  if (!chart) return;
+  if (readings.length < 2) {
+    chart.innerHTML = '<text x="20" y="110">Waiting for at least two readings</text>';
+    return;
+  }
+
+  const points = readings.slice(-100);
+  const values = points.map((reading) => Number(reading[field]));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const left = 42;
+  const top = 18;
+  const width = 560;
+  const height = 140;
+  const path = points.map((reading, index) => {
+    const x = left + (index / Math.max(1, points.length - 1)) * width;
+    const y = top + height - ((Number(reading[field]) - min) / range) * height;
+    return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+
+  chart.innerHTML = `
+    <path class="sensor-chart-grid" d="M${left} ${top}H${left + width}M${left} ${top + height / 2}H${left + width}M${left} ${top + height}H${left + width}" />
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="3" />
+    <text x="${left}" y="205">${formatNumber(min)}${suffix}</text>
+    <text x="${left + width - 55}" y="205">${formatNumber(max)}${suffix}</text>
+    <text x="${left + width - 80}" y="16">Latest</text>
+  `;
+}
+
 async function fetchSupabaseReadings() {
   const endpoint = `${SUPABASE_CONFIG.url}/rest/v1/${SUPABASE_CONFIG.table}?select=*&order=created_at.desc&limit=${SUPABASE_CONFIG.limit}`;
   const response = await fetch(endpoint, {
@@ -689,6 +757,9 @@ async function fetchSupabaseReadings() {
 async function loadSupabaseSensorData() {
   const needsSensorData = document.getElementById("latest-readings-table")
     || document.getElementById("analytics-readings-table")
+    || document.getElementById("water-level-time-table")
+    || document.getElementById("temperature-time-table")
+    || document.getElementById("soil-moisture-time-table")
     || document.getElementById("live-soil-moisture");
 
   if (!needsSensorData) return;
@@ -701,15 +772,21 @@ async function loadSupabaseSensorData() {
     updateDashboardReadingsTable(readings);
     updateAnalyticsSummary(readings);
     updateAnalyticsReadingsTable(analyticsReadings);
+    updateSensorTimeTables(analyticsReadings);
 
     if (window.lucide) {
       window.lucide.createIcons({ attrs: { "stroke-width": 2 } });
     }
   } catch (error) {
     console.error(error);
+    const message = error instanceof Error ? error.message : String(error);
     setText("sensor-sync-summary", "Could not load Supabase readings. Check table policies and API key.");
     setText("sensor-history-status", "Supabase fetch failed");
-    setText("analytics-sync-status", "Supabase fetch failed");
+    setText("analytics-sync-status", `Supabase fetch failed: ${message}`);
+    ["water-level-time-table", "temperature-time-table", "soil-moisture-time-table"].forEach((id) => {
+      const table = document.getElementById(id);
+      if (table) table.innerHTML = `<tr><td colspan="2">${message}</td></tr>`;
+    });
   }
 }
 
@@ -865,7 +942,7 @@ initLeafWebcam();
 initAnalyticsControls();
 loadWeatherData();
 loadSupabaseSensorData();
-setInterval(loadSupabaseSensorData, 10000);
+setInterval(loadSupabaseSensorData, 30000);
 
 if (window.lucide) {
   window.lucide.createIcons({

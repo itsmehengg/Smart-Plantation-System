@@ -65,8 +65,8 @@ esp32/relay_unit_5v/relay_unit_5v.ino
 
 | Feature | ESP32 pin | Relay connection |
 |---|---:|---|
-| Relay channel 1, pump | GPIO 26 | Relay IN1 |
-| Relay channel 2, fan | GPIO 27 | Relay IN2 |
+| Relay channel 1, pump | GPIO 27 | Physical pump channel |
+| Relay channel 2, fan | GPIO 26 | Physical fan channel |
 | Relay VCC | 5V/VIN | Relay VCC |
 | Relay GND | GND | Relay GND |
 
@@ -82,8 +82,8 @@ Relay IN2 -> ESP32 GPIO 27
 Relay channel assignment:
 
 ```text
-Relay Channel 1 -> Water pump
-Relay Channel 2 -> Fan
+GPIO 27 / pump output -> Water pump
+GPIO 26 / fan output -> Fan
 ```
 
 Pump on relay channel 1:

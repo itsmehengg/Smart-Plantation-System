@@ -2,21 +2,47 @@
 
 The USB webcam is connected to the computer running Node-RED. Other users can view the camera preview through Node-RED when they are on the same WiFi network.
 
+## Start the Flask dashboard
+
+From the project root, install the dashboard dependency and start Flask:
+
+```powershell
+..\.venv\Scripts\python.exe -m pip install -r requirements.txt
+..\.venv\Scripts\python.exe app.py
+```
+
+Open `http://127.0.0.1:3000/` on the laptop. To open it from another device, use the laptop's LAN IP on port `3000`.
+
 ## Same WiFi Access
 
 1. Connect the laptop and phone to the same WiFi network.
-2. Start the webcam host on the laptop:
+2. Start the webcam and YOLO API on the laptop:
 
 ```powershell
-python webcam\stream_host.py
+..\.venv\Scripts\python.exe webcam\capture_leaf.py --host 0.0.0.0 --port 5000
 ```
 
-The host listens on all network interfaces and prints the laptop's local IP address. The default port is `8000`. Put your detection model at `webcam/best.pt` and it will be loaded automatically.
+Before starting the service, configure the Supabase URL and publishable key:
+
+```powershell
+$env:SUPABASE_URL = "https://your-project.supabase.co"
+$env:SUPABASE_KEY = "your-supabase-publishable-key"
+```
+
+The API listens on all network interfaces at port `5000`. Put your detection model at `webcam/best.pt` and it will be loaded automatically. The camera is opened only when the dashboard capture button is pressed. Each annotated image is uploaded to the `plant-images` Supabase Storage bucket, then its public URL is inserted into `plant_sensor_readings.image_url`.
+
+Run `supabase/create_plant_sensor_readings.sql` in Supabase SQL Editor first. It creates the table column, storage bucket, and storage policies used by the upload.
+
+Captured annotated images and their detection results are saved in:
+
+```text
+webcam/plant_images/
+```
 
 3. If Windows Firewall prompts, allow Python access on **Private networks**. If the phone cannot connect, run PowerShell as Administrator once:
 
 ```powershell
-New-NetFirewallRule -DisplayName "SmartPlant webcam" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow -Profile Private
+New-NetFirewallRule -DisplayName "SmartPlant dashboard and webcam" -Direction Inbound -Protocol TCP -LocalPort 3000,5000 -Action Allow -Profile Private
 ```
 
 4. On the phone, open the dashboard and enter only the laptop IP address in **Laptop IP address**, for example:
@@ -25,12 +51,12 @@ New-NetFirewallRule -DisplayName "SmartPlant webcam" -Direction Inbound -Protoco
 192.168.1.25
 ```
 
-Then press **Load Network Stream**. The dashboard automatically uses `http://192.168.1.25:8000/stream.mjpg`.
+Then press **Capture Photo + Detect**. The dashboard sends one capture request to `http://192.168.1.25:5000/capture_detect`.
 
 If the model is stored elsewhere, provide its path explicitly:
 
 ```powershell
-python webcam\stream_host.py --model "C:\path\to\best.pt"
+..\.venv\Scripts\python.exe webcam\capture_leaf.py --model "C:\path\to\best.pt" --host 0.0.0.0 --port 5000
 ```
 
 Node-RED access is separate. To use it:

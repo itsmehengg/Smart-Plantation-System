@@ -761,6 +761,60 @@ table,
   gap: 20px;
 }
 
+.sensor-time-tables {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.sensor-time-table-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sensor-time-table-card .card-title {
+  padding: 22px 26px 12px;
+}
+
+.sensor-time-table-card .table-wrap {
+  max-height: 320px;
+  overflow: auto;
+  padding: 0 18px 18px;
+}
+
+.sensor-chart {
+  display: block;
+  width: calc(100% - 36px);
+  height: 220px;
+  margin: 0 18px 18px;
+  overflow: visible;
+}
+
+.sensor-chart text {
+  fill: var(--muted);
+  font: 11px var(--mono);
+}
+
+.sensor-chart-grid {
+  fill: none;
+  stroke: #dfe9e5;
+  stroke-dasharray: 6 7;
+}
+
+.sensor-time-table-card th,
+.sensor-time-table-card td {
+  padding: 10px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .sensor-time-tables {
+    grid-template-columns: 1fr;
+  }
+}
+
 .nutrients-card {
   min-height: 205px;
   padding: 26px;
@@ -1591,6 +1645,11 @@ td svg,
   height: 100%;
   min-height: 280px;
   object-fit: cover;
+}
+
+.webcam-panel img#camera-detection-image {
+  object-fit: contain;
+  background: #10231f;
 }
 
 .webcam-panel video:not(.has-image),

@@ -33,6 +33,7 @@ Each row stores one sensor upload from the ESP32:
 | water_level_status | `full` or `not full` |
 | water_distance_cm | Ultrasonic distance reading |
 | soil_raw | Raw ESP32 analog value |
+| image_url | URL of the captured/detected plant image |
 
 One table is better than one separate table per sensor because every reading from the ESP32 belongs to the same time point.
 
