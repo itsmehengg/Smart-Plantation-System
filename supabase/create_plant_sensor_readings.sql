@@ -9,12 +9,11 @@ create table if not exists public.plant_sensor_readings (
   water_level_status text,
   water_distance_cm numeric,
   soil_raw integer,
-  image_url text
+
 );
 
 -- Keeps existing installations compatible when this script is run again.
 alter table public.plant_sensor_readings
-add column if not exists image_url text;
 
 alter table public.plant_sensor_readings enable row level security;
 
