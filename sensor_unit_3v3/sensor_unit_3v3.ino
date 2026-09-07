@@ -3,8 +3,8 @@
 #include <DHT.h>
 #include <math.h>
 
-const char* WIFI_SSID = "B33-20_samleezx-TIME";
-const char* WIFI_PASSWORD = "01127118938";
+const char* WIFI_SSID = "B100M-T3";
+const char* WIFI_PASSWORD = "12345678";
 
 const char* MQTT_SERVER = "broker.hivemq.com";
 const int MQTT_PORT = 1883;
